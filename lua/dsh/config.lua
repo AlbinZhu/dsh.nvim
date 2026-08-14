@@ -33,6 +33,8 @@ M.defaults = {
     ask_file = "<leader>df",
     ask_visual = "<leader>ds",
     tui = "<leader>dt",
+    tui_file = "<leader>dtf",
+    tui_visual = "<leader>dts",
   },
   tui = {
     profile = "tui",                             -- dsh profile（tianshu TUI 装在 tui profile 里）
@@ -40,6 +42,7 @@ M.defaults = {
     cwd = "root",                                -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
     layout = "float",                            -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",                             -- 终端 normal 模式下关闭/收起窗口的按键
+    file_mode = "mention",                       -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
     skip_update = false,                         -- true = 启动时跳过 npm 版本检查（设 DSH_TUI_SKIP_UPDATE=1）
     plugin_name = "@huiliyi37/dsh-tianshu-tui",  -- 安装命令使用的包名
     float = {

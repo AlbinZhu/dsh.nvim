@@ -32,6 +32,8 @@ local function apply_keymaps(cfg)
     { "n", km.ask_file, function() M.ask_file() end, "dsh: ask about current file" },
     { "x", km.ask_visual, function() M.ask_visual() end, "dsh: ask about selection" },
     { "n", km.tui, function() M.toggle_tui() end, "dsh: toggle tianshu TUI" },
+    { "n", km.tui_file, function() M.tui_add_file() end, "dsh: add file to tianshu TUI" },
+    { "x", km.tui_visual, function() M.tui_add_selection() end, "dsh: add selection to tianshu TUI" },
   }
   for _, d in ipairs(defs) do
     local lhs = d[2]
@@ -158,6 +160,21 @@ end
 --- 安装 tianshu TUI 插件到 tui profile。
 function M.tui_install()
   return M.tui.install()
+end
+
+--- 向 TUI 添加一个文件（默认 @mention 引用，见 tui.file_mode）。
+function M.tui_add_file(path)
+  return M.tui.add_file(path)
+end
+
+--- 把当前视觉选择粘贴进 TUI 输入行。
+function M.tui_add_selection()
+  return M.tui.add_selection()
+end
+
+--- 把文本安全粘贴进 TUI 输入行（bracketed paste）。
+function M.tui_paste(text)
+  return M.tui.paste(text)
 end
 
 return M

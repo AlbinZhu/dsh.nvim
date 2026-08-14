@@ -63,6 +63,18 @@ vim.api.nvim_create_user_command("DshTuiClose", function()
   mod().close_tui()
 end, { desc = "Close/hide the dsh-tianshu TUI window" })
 
+vim.api.nvim_create_user_command("DshTuiFile", function(cmd)
+  mod().tui_add_file(table.concat(cmd.fargs, " "))
+end, {
+  nargs = "*",
+  complete = "file",
+  desc = "Add a file to the dsh-tianshu TUI (mention by default, or full content per tui.file_mode)",
+})
+
+vim.api.nvim_create_user_command("DshTuiSelection", function()
+  mod().tui_add_selection()
+end, { range = true, desc = "Add the visual selection to the dsh-tianshu TUI input" })
+
 vim.api.nvim_create_user_command("DshTuiInstall", function()
   mod().tui_install()
 end, { desc = "Install the dsh-tianshu TUI plugin into the tui profile" })

@@ -292,11 +292,103 @@ function M.toggle(opts)
 end
 
 --- 向运行中的 TUI 发送文本（输入到输入行，不自动回车）。
+--- 注意：直接按字节发送，适合简短纯文本；多行/含转义的代码请用 paste()。
 function M.send(text)
   if not state.chan then
     return false
   end
   vim.api.nvim_chan_send(state.chan, text)
+  return true
+end
+
+-- bracketed paste 起止标记（DEC 2004）。tianshu TUI 会把它当作整段粘贴，
+-- 多行代码/含转义字符的文本都能安全地进输入行，不会逐行提交或被终端转义吃掉。
+local PASTE_START = "\27[200~"
+local PASTE_END = "\27[201~"
+
+--- 把文本以 bracketed paste 安全粘贴进输入行（不自动回车）。
+function M.paste(text)
+  if not state.chan then
+    return false
+  end
+  vim.api.nvim_chan_send(state.chan, PASTE_START .. text .. PASTE_END)
+  return true
+end
+
+--- 确保 TUI 已打开且可见后执行 fn。
+--- 已可见就立即；进程在后台跑但窗口收起就先恢复窗口再发；
+--- 尚未启动则打开并等启动完成再发。
+local function when_ready(fn, opts)
+  if state.chan and state.win and vim.api.nvim_win_is_valid(state.win) then
+    fn()
+    return
+  end
+  local was_running = state.chan ~= nil
+  M.open(opts)
+  if was_running then
+    fn()
+  else
+    vim.defer_fn(function()
+      if state.chan then
+        fn()
+      end
+    end, 500)
+  end
+end
+
+--- 把文件引用为 @mention（提交时 TUI 会展开为内容摘要）。
+--- 路径含空格/引号时用引号形 `@"..."` 包裹。
+local function mention_of(path)
+  return '@"' .. tostring(path):gsub("\\", "\\\\"):gsub('"', '\\"') .. '" '
+end
+
+--- 向 TUI 添加一个文件。
+--- 默认以 @mention 引用；file_mode == "content" 时粘贴完整内容。
+---@param path string|nil 文件路径；nil = 当前缓冲区关联文件
+function M.add_file(path)
+  local cfg = config()
+  local t = cfg.tui or {}
+
+  local p = path
+  if not p or p == "" then
+    p = require("dsh.context").current_file()
+  end
+  if not p then
+    vim.notify("dsh-tui: 当前缓冲区没有关联文件。", vim.log.levels.WARN)
+    return nil
+  end
+
+  if t.file_mode == "content" then
+    local content = require("dsh.context").file_content(p)
+    if not content then
+      vim.notify("dsh-tui: 无法读取文件 " .. p, vim.log.levels.ERROR)
+      return nil
+    end
+    -- 同步读取后再打开 TUI，避免 defer 期间缓冲区变化。
+    when_ready(function()
+      M.paste(content)
+    end)
+    return true
+  end
+
+  local mention = mention_of(p)
+  when_ready(function()
+    M.paste(mention)
+  end)
+  return true
+end
+
+--- 把当前视觉选择粘贴进 TUI 输入行（bracketed paste）。
+function M.add_selection()
+  -- 同步抓取选择，避免 defer 到 TUI 启动完成后选区已失效。
+  local sel = require("dsh.context").visual_selection()
+  if not sel or sel == "" then
+    vim.notify("dsh-tui: 没有可用的视觉选择（请先 visual 选中文本）。", vim.log.levels.WARN)
+    return nil
+  end
+  when_ready(function()
+    M.paste(sel)
+  end)
   return true
 end
 

@@ -49,6 +49,13 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 :DshTuiClose					*dsh-:DshTuiClose*
 	关闭/收起 TUI 窗口（进程后台继续运行）。
 
+:DshTuiFile [路径]					*dsh-:DshTuiFile*
+	把文件加进 TUI 输入行：默认以 `@"路径"` @mention 引用（提交时展开为摘要），
+	`tui.file_mode = "content"` 时粘贴完整内容。不带参数时用当前缓冲区文件。
+
+:'<,'>DshTuiSelection				*dsh-:DshTuiSelection*
+	把 visual 选中的代码粘贴进 TUI 输入行（bracketed paste，不自动回车）。
+
 :DshTuiInstall					*dsh-:DshTuiInstall*
 	运行 `dsh plugin --profile tui add @huiliyi37/dsh-tianshu-tui` 安装 TUI。
 
@@ -69,6 +76,8 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	    ask_file = "<leader>df",
 	    ask_visual = "<leader>ds",
 	    tui = "<leader>dt",
+	    tui_file = "<leader>dtf",
+	    tui_visual = "<leader>dts",
 	  },
 	  tui = {
 	    profile = "tui",
@@ -76,6 +85,7 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	    cwd = "root",          -- "root" | "buffer" | "cwd" | 绝对路径
 	    layout = "float",      -- "float" | "split" | "vsplit" | "tab"
 	    close_key = "q",       -- 终端 normal 模式下关闭/收起窗口
+	    file_mode = "mention", -- "mention"(引用) | "content"(粘贴全文)
 	    skip_update = false,   -- true = 跳过 npm 版本检查
 	    float = {
 	      relative = "editor", width = 0.94, height = 0.9,
@@ -107,6 +117,9 @@ TUI 终端内的按键：`<C-\><C-n>` 进入终端 normal 模式，然后按 `q`
 	require("dsh").close_tui()	收起/关闭 TUI 窗口
 	require("dsh").toggle_tui(opts?)	toggle TUI
 	require("dsh").tui_install()	安装 TUI 插件到 tui profile
+	require("dsh").tui_add_file(path?)	向 TUI 添加文件
+	require("dsh").tui_add_selection()	把选区粘贴进 TUI
+	require("dsh").tui_paste(text)	安全粘贴文本（bracketed paste）
 	require("dsh.tui").send(text)	向 TUI 输入行发送文本
 
 ==============================================================================

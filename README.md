@@ -101,6 +101,8 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTui` | 打开/收起 TUI（默认布局）· Toggle the TUI |
 | `:DshTui [文本]` | 打开后把文本输入到 TUI 输入行 · Open and type text |
 | `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | 指定布局打开 TUI · Open in a specific layout |
+| `:DshTuiFile [路径]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用）· Add a file to the TUI input |
+| `:'<,'>DshTuiSelection` | 把选中的代码粘贴进 TUI 输入行 · Paste the selection into the TUI |
 | `:DshTuiClose` | 关闭/收起 TUI 窗口 · Close/hide the TUI window |
 | `:DshTuiInstall` | 安装 tianshu 插件到 tui profile · Install the TUI plugin |
 
@@ -112,6 +114,8 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>df` | 审查当前文件 · Review file |
 | `<leader>ds` (visual) | 处理选中文本 · Send selection |
 | `<leader>dt` | 打开/收起 TUI · Toggle TUI |
+| `<leader>dtf` | 把当前文件加进 TUI · Add file to TUI |
+| `<leader>dts` (visual) | 把选中代码加进 TUI · Add selection to TUI |
 
 TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（`Ctrl+Q` 退出等）在终端 job 模式下直接可用。
 
@@ -144,6 +148,7 @@ require("dsh").setup({
     cwd = "root",               -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
     layout = "float",           -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
+    file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
     skip_update = false,        -- true = 跳过启动时的 npm 版本检查
     float = {
       relative = "editor",
@@ -193,6 +198,9 @@ require("dsh").open_tui(opts?) -- 打开/聚焦 TUI（opts: { layout, text }）
 require("dsh").toggle_tui(opts?) -- toggle TUI
 require("dsh").close_tui()     -- 收起/关闭 TUI 窗口
 require("dsh").tui_install()   -- 安装 TUI 插件到 tui profile
+require("dsh").tui_add_file(path?) -- 把文件加进 TUI（默认 @mention 引用）
+require("dsh").tui_add_selection() -- 把视觉选区粘贴进 TUI
+require("dsh").tui_paste(text) -- 以 bracketed paste 安全粘贴文本
 require("dsh.tui").send(text)  -- 向 TUI 输入行发送文本
 ```
 
@@ -213,6 +221,13 @@ dsh --profile tui
 ```
 
 并把该进程跑进 Neovim 内置 `:terminal` 缓冲区（dsh-tianshu-tui 是全屏交互式终端应用，不能像 headless 那样只收集 stdout）。窗口收起后进程继续在后台运行，再次 toggle 会复用同一个终端。
+
+把代码/文件「加进」TUI 时，走的是终端自身的输入面：
+
+- 选中的代码用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
+- 文件默认以 `@"路径"` **@mention** 引用，提交时 TUI 展开为内容摘要；`tui.file_mode = "content"` 则改为粘贴完整内容。
+
+两者都只放进输入行、不自动回车，方便你继续补充说明后再提交。
 
 ## ❓ 常见问题 · FAQ
 
