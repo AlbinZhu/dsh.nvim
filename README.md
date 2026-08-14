@@ -148,7 +148,7 @@ require("dsh").setup({
     profile = "tui",            -- tianshu TUI 所在的 profile
     launcher_args = {},         -- 额外的启动器参数，例如 { "--patch", "/path/x.yml" }
     cwd = "root",               -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
-    layout = "float",           -- 默认布局："float" | "split" | "vsplit" | "tab"
+    layout = "split",           -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
     skip_update = false,        -- true = 跳过启动时的 npm 版本检查
