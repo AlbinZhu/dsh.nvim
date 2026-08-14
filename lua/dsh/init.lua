@@ -31,6 +31,7 @@ local function apply_keymaps(cfg)
     { "n", km.ask, function() M.ask() end, "dsh: ask" },
     { "n", km.ask_file, function() M.ask_file() end, "dsh: ask about current file" },
     { "x", km.ask_visual, function() M.ask_visual() end, "dsh: ask about selection" },
+    { "n", km.tui, function() M.toggle_tui() end, "dsh: toggle tianshu TUI" },
   }
   for _, d in ipairs(defs) do
     local lhs = d[2]
@@ -134,6 +135,29 @@ function M.cancel()
   local cancelled = require("dsh.runner").cancel()
   require("dsh.ui").close()
   return cancelled
+end
+
+--- dsh-tianshu-tui 终端集成模块（详见 require("dsh.tui")）。
+M.tui = require("dsh.tui")
+
+--- 打开（或聚焦）TUI。opts 可为 { layout = "float|split|vsplit|tab", text = "..." }。
+function M.open_tui(opts)
+  return M.tui.open(opts)
+end
+
+--- 收起/关闭 TUI 窗口。
+function M.close_tui()
+  return M.tui.close()
+end
+
+--- toggle TUI。
+function M.toggle_tui(opts)
+  return M.tui.toggle(opts)
+end
+
+--- 安装 tianshu TUI 插件到 tui profile。
+function M.tui_install()
+  return M.tui.install()
 end
 
 return M

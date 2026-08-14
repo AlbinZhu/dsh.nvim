@@ -1,14 +1,18 @@
-*dsh.txt*	在 Neovim 中调用 DeepSeek Harness (dsh) 的一次性任务模式
+*dsh.txt*	在 Neovim 中调用 DeepSeek Harness (dsh)
 
 ==============================================================================
 1. 简介							*dsh-intro*
 
-dsh.nvim 是一个轻量插件，把 `dsh --profile headless "任务"` 接进 Neovim：
-在浮窗里提问，dsh 完成后把最后一条回复显示在浮窗中。
+dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
+
+- 一次性任务模式：`dsh --profile headless "任务"`，结果显示在浮窗中。
+- 交互式终端 TUI：把 dsh-tianshu-tui（`dsh --profile tui`）跑进 Neovim
+  内置 `:terminal`，支持 float / split / vsplit / tab 布局并可 toggle。
 
 要求：
 - Neovim >= 0.10（依赖 vim.system / vim.fs）
 - 可用的 `dsh` CLI（@deepseek-ai/dsh）
+- （使用 TUI 时）已把 @huiliyi37/dsh-tianshu-tui 装进 tui profile
 
 ==============================================================================
 2. 命令							*dsh-commands*
@@ -24,6 +28,29 @@ dsh.nvim 是一个轻量插件，把 `dsh --profile headless "任务"` 接进 Ne
 
 :DshCancel					*dsh-:DshCancel*
 	取消正在运行的任务并关闭浮窗。
+
+:dsh-tianshu-tui 终端集成~
+
+:DshTui [文本]					*dsh-:DshTui*
+	打开/收起 TUI（默认布局）。带参数时把文本输入到 TUI 输入行。
+
+:DshTuiFloat					*dsh-:DshTuiFloat*
+	在浮动窗口打开 TUI。
+
+:DshTuiSplit					*dsh-:DshTuiSplit*
+	在水平分屏打开 TUI。
+
+:DshTuiVSplit					*dsh-:DshTuiVSplit*
+	在垂直分屏打开 TUI。
+
+:DshTuiTab					*dsh-:DshTuiTab*
+	在新标签页打开 TUI。
+
+:DshTuiClose					*dsh-:DshTuiClose*
+	关闭/收起 TUI 窗口（进程后台继续运行）。
+
+:DshTuiInstall					*dsh-:DshTuiInstall*
+	运行 `dsh plugin --profile tui add @huiliyi37/dsh-tianshu-tui` 安装 TUI。
 
 ==============================================================================
 3. 配置							*dsh-config*
@@ -41,11 +68,31 @@ dsh.nvim 是一个轻量插件，把 `dsh --profile headless "任务"` 接进 Ne
 	    ask = "<leader>da",
 	    ask_file = "<leader>df",
 	    ask_visual = "<leader>ds",
+	    tui = "<leader>dt",
+	  },
+	  tui = {
+	    profile = "tui",
+	    launcher_args = {},
+	    cwd = "root",          -- "root" | "buffer" | "cwd" | 绝对路径
+	    layout = "float",      -- "float" | "split" | "vsplit" | "tab"
+	    close_key = "q",       -- 终端 normal 模式下关闭/收起窗口
+	    skip_update = false,   -- true = 跳过 npm 版本检查
+	    float = {
+	      relative = "editor", width = 0.94, height = 0.9,
+	      row = 0.03, col = 0.03, anchor = "NW",
+	      border = "rounded", title = " dsh-tianshu-tui ",
+	      title_pos = "center", style = "minimal", focusable = true,
+	    },
+	    split = { position = "below", size = 0.4 },
+	    vsplit = { position = "right", size = 0.5 },
 	  },
 	})
 	EOF
 
 未调用 setup() 时，命令也能工作（使用默认配置），只是不注册按键映射。
+
+TUI 终端内的按键：`<C-\><C-n>` 进入终端 normal 模式，然后按 `q` / `<Esc>`
+关闭/收起窗口。TUI 自身的快捷键（如 `Ctrl+Q` 退出）在终端 job 模式下直接可用。
 
 ==============================================================================
 4. Lua API						*dsh-api*
@@ -56,6 +103,11 @@ dsh.nvim 是一个轻量插件，把 `dsh --profile headless "任务"` 接进 Ne
 	require("dsh").ask_file()	审查当前文件
 	require("dsh").ask_visual()	处理视觉选择
 	require("dsh").cancel()		取消任务
+	require("dsh").open_tui(opts?)	打开/聚焦 TUI
+	require("dsh").close_tui()	收起/关闭 TUI 窗口
+	require("dsh").toggle_tui(opts?)	toggle TUI
+	require("dsh").tui_install()	安装 TUI 插件到 tui profile
+	require("dsh.tui").send(text)	向 TUI 输入行发送文本
 
 ==============================================================================
 5. 备注							*dsh-notes*
@@ -63,5 +115,14 @@ dsh.nvim 是一个轻量插件，把 `dsh --profile headless "任务"` 接进 Ne
 - headless 模式只输出最后一条回复，没有增量流式输出；运行期间浮窗会显示 spinner。
 - 首次使用 headless profile 会自动初始化（首次运行略慢）。
 - 如果 dsh 不在 PATH，可通过 `dsh_cmd` 指定绝对路径。
+
+:dsh-tianshu-tui 备注~
+
+- TUI 是全屏交互式终端应用，须先安装：
+  `npx -y @deepseek-ai/dsh plugin --profile tui add @huiliyi37/dsh-tianshu-tui`
+  或用 `:DshTuiInstall`。
+- 首次使用 tui profile 会自动初始化（略慢）；之后每次启动会对照 npm 检查更新，
+  不想联网检查时设 `tui.skip_update = true`。
+- TUI 依赖 Node `^22.19 || >=24` 与 PATH 上的 `pnpm`。
 
 vim:tw=78:ts=8:noet:ft=help:norl:

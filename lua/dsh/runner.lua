@@ -22,6 +22,9 @@ local function resolve_dsh_cmd(config)
   return nil
 end
 
+--- 供其它模块复用（例如 dsh.tui 需要同一个 dsh 探测逻辑）。
+M.resolve_dsh_cmd = resolve_dsh_cmd
+
 --- 拼装命令；失败时返回 nil, 错误信息。
 function M.build_command(config, task)
   local cmd = resolve_dsh_cmd(config)
