@@ -91,38 +91,50 @@ local function set_lines(lines)
 end
 
 --- 展示成功结果。
+--- 注意：由 vim.system 的 on_exit（fast event context）调用，必须用 vim.schedule
+--- 推迟到主事件循环，否则设置 buffer 选项会触发 E5560。
 function M.set_result(stdout)
-  if state.timer then
-    state.timer:stop()
-  end
-  vim.bo[state.buf].filetype = "markdown"
-  set_lines(vim.split(stdout, "\n"))
+  vim.schedule(function()
+    if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+      return
+    end
+    if state.timer then
+      state.timer:stop()
+    end
+    vim.bo[state.buf].filetype = "markdown"
+    set_lines(vim.split(stdout, "\n"))
+  end)
 end
 
 --- 展示错误信息。
 function M.set_error(code, signal, stderr, msg)
-  if state.timer then
-    state.timer:stop()
-  end
-  vim.bo[state.buf].filetype = "text"
+  vim.schedule(function()
+    if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+      return
+    end
+    if state.timer then
+      state.timer:stop()
+    end
+    vim.bo[state.buf].filetype = "text"
 
-  local lines = { "✗ dsh 运行失败" }
-  if code ~= nil then
-    table.insert(lines, "exit code: " .. tostring(code))
-  end
-  if signal and signal ~= 0 then
-    table.insert(lines, "signal: " .. tostring(signal))
-  end
-  if msg then
-    table.insert(lines, "")
-    table.insert(lines, msg)
-  end
-  if stderr and stderr ~= "" then
-    table.insert(lines, "")
-    table.insert(lines, "--- stderr ---")
-    vim.list_extend(lines, vim.split(stderr, "\n"))
-  end
-  set_lines(lines)
+    local lines = { "✗ dsh 运行失败" }
+    if code ~= nil then
+      table.insert(lines, "exit code: " .. tostring(code))
+    end
+    if signal and signal ~= 0 then
+      table.insert(lines, "signal: " .. tostring(signal))
+    end
+    if msg then
+      table.insert(lines, "")
+      table.insert(lines, msg)
+    end
+    if stderr and stderr ~= "" then
+      table.insert(lines, "")
+      table.insert(lines, "--- stderr ---")
+      vim.list_extend(lines, vim.split(stderr, "\n"))
+    end
+    set_lines(lines)
+  end)
 end
 
 function M.close()
