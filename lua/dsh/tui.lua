@@ -182,7 +182,7 @@ local function launch(cmd, opts)
   opts = opts or {}
   local t = cfg.tui or {}
 
-  local layout = opts.layout or t.layout or "float"
+  local layout = opts.layout or t.layout or "vsplit"
   local buf, win = open_window(cfg, layout, opts.title, opts.existing_buf)
 
   vim.api.nvim_set_current_buf(buf)
@@ -224,7 +224,7 @@ function M.open(opts)
     state.win = nil
   end
 
-  local layout = opts.layout or t.layout or "float"
+  local layout = opts.layout or t.layout or "vsplit"
 
   -- 进程还在跑、只是窗口被收起：在同一终端缓冲区上重建窗口，避免重复启动。
   if state.buf and vim.api.nvim_buf_is_valid(state.buf) and state.chan then

@@ -83,7 +83,7 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	    profile = "tui",
 	    launcher_args = {},
 	    cwd = "root",          -- "root" | "buffer" | "cwd" | 绝对路径
-	    layout = "float",      -- "float" | "split" | "vsplit" | "tab"
+	    layout = "vsplit",     -- "float" | "split" | "vsplit" | "tab"
 	    close_key = "q",       -- 终端 normal 模式下关闭/收起窗口
 	    file_mode = "mention", -- "mention"(引用) | "content"(粘贴全文)
 	    skip_update = false,   -- true = 跳过 npm 版本检查
