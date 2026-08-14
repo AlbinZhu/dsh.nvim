@@ -32,9 +32,9 @@ M.defaults = {
     ask = "<leader>da",
     ask_file = "<leader>df",
     ask_visual = "<leader>ds",
-    tui = "<leader>dt",
-    tui_file = "<leader>dtf",
-    tui_visual = "<leader>dts",
+    tui = "<leader>tt",
+    tui_file = "<leader>tf",
+    tui_visual = "<leader>ts",
   },
   tui = {
     profile = "tui",                             -- dsh profile（tianshu TUI 装在 tui profile 里）

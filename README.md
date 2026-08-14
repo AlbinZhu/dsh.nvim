@@ -113,9 +113,9 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>da` | 提问 · Ask |
 | `<leader>df` | 审查当前文件 · Review file |
 | `<leader>ds` (visual) | 处理选中文本 · Send selection |
-| `<leader>dt` | 打开/收起 TUI · Toggle TUI |
-| `<leader>dtf` | 把当前文件加进 TUI · Add file to TUI |
-| `<leader>dts` (visual) | 把选中代码加进 TUI · Add selection to TUI |
+| `<leader>tt` | 打开/收起 TUI · Toggle TUI |
+| `<leader>tf` | 把当前文件加进 TUI · Add file to TUI |
+| `<leader>ts` (visual) | 把选中代码加进 TUI · Add selection to TUI |
 
 TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（`Ctrl+Q` 退出等）在终端 job 模式下直接可用。
 
@@ -140,7 +140,9 @@ require("dsh").setup({
     ask = "<leader>da",
     ask_file = "<leader>df",
     ask_visual = "<leader>ds",
-    tui = "<leader>dt",
+    tui = "<leader>tt",
+    tui_file = "<leader>tf",
+    tui_visual = "<leader>ts",
   },
   tui = {
     profile = "tui",            -- tianshu TUI 所在的 profile
