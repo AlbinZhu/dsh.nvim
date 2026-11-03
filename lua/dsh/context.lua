@@ -58,6 +58,11 @@ function M.visual_selection()
   local sl, sc = start[2], start[3] -- 1-based line, 1-based byte col
   local el, ec = finish[2], finish[3]
 
+  -- 从未做过 visual 选择时 '< '> 标记没有设置（行号为 0），没有可读的选区。
+  if sl == 0 or el == 0 then
+    return nil
+  end
+
   -- linewise (V) 与 blockwise (Ctrl-v) 均取整行
   if mode == "V" or mode == "\22" then
     local lines = vim.api.nvim_buf_get_lines(buf, sl - 1, el, false)
@@ -72,6 +77,16 @@ function M.visual_selection()
   lines[1] = string.sub(lines[1], sc)
   lines[#lines] = string.sub(lines[#lines], 1, ec)
   return table.concat(lines, "\n")
+end
+
+--- 若当前处于 visual 模式则先退出，让 '< 与 '> 立即更新为刚选中的内容。
+--- x 模式按键映射的回调执行时仍在 visual 模式里，标记还停留在上一次选区；
+--- 不先退出的话读到的是旧选区（从未选过时则读空）。
+function M.exit_visual()
+  local mode = vim.api.nvim_get_mode().mode
+  if mode == "v" or mode == "V" or mode == "\22" then
+    vim.api.nvim_feedkeys(vim.keycode("<Esc>"), "nx", false)
+  end
 end
 
 return M

@@ -36,10 +36,18 @@ local function apply_keymaps(cfg)
     { "x", km.tui_visual, function() M.tui_add_selection() end, "dsh: add selection to dsh-TUI" },
   }
   for _, d in ipairs(defs) do
-    local lhs = d[2]
+    local mode, lhs, fn, desc = d[1], d[2], d[3], d[4]
     if type(lhs) == "string" and lhs ~= "" then
-      vim.keymap.set(d[1], lhs, d[3], { desc = d[4], silent = true })
-      table.insert(registered_keymaps, { d[1], lhs })
+      if mode == "x" then
+        -- x 模式的回调执行时 '< '> 还停在上一次选区：先退出 visual 再读（见 context.exit_visual）。
+        local inner = fn
+        fn = function()
+          require("dsh.context").exit_visual()
+          inner()
+        end
+      end
+      vim.keymap.set(mode, lhs, fn, { desc = desc, silent = true })
+      table.insert(registered_keymaps, { mode, lhs })
     end
   end
 end
