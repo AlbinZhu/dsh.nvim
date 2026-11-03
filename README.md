@@ -96,7 +96,7 @@ Plug 'AlbinZhu/dsh.nvim'
 ## 🚀 Quick Start
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | `:Dsh explain this project to me` | Ask directly |
 | `:Dsh` | Ask via an input dialog |
 | `:DshFile` | Review the current file |
@@ -106,7 +106,7 @@ Plug 'AlbinZhu/dsh.nvim'
 ### 🖥️ dsh-TUI integration
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | `:DshTui` | Toggle the TUI (default layout) |
 | `:DshTui [text]` | Open the TUI and type text into its input line |
 | `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | Open the TUI in a specific layout |
@@ -121,7 +121,7 @@ Plug 'AlbinZhu/dsh.nvim'
 _Default keymaps (registered in `setup()`, can be disabled):_
 
 | Key | Action |
-|---|---|
+| --- | --- |
 | `<leader>da` | Ask |
 | `<leader>df` | Review file |
 | `<leader>ds` (visual) | Send selection |
@@ -139,7 +139,7 @@ Opening or focusing the TUI puts you straight into terminal mode, so you can typ
 The TUI commands and keymaps are modeled on [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim), so the habits carry over:
 
 | claudecode.nvim | dsh.nvim |
-|---|---|
+| --- | --- |
 | `:ClaudeCode` · `<leader>ac` | `:DshTui` · `<leader>tt` |
 | `:ClaudeCodeFocus` · `<leader>af` | `:DshTuiFocus` · `<leader>tF` |
 | `:ClaudeCode --resume` · `<leader>ar` (and `--continue` · `<leader>aC`) | `:DshTuiResume` · `<leader>tr` — in dsh-TUI, `--resume`, `-c` and `--continue` all mean "reopen the last session" |
