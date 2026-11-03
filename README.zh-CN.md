@@ -21,13 +21,13 @@
 `dsh.nvim` 是一个轻量级 Neovim 插件，把 `dsh` 接入编辑器，支持两种工作方式：
 
 - **一次性任务模式**（`headless` profile）：在浮窗里提问、审查当前文件、或把选中的代码发给 AI 代理，结果直接显示在浮窗中。
-- **交互式终端 TUI**：把 [dsh-tianshu-tui](https://github.com/huiliyi37/dsh-tianshu-tui)（`dsh --profile tui`）跑进 Neovim 内置 `:terminal`，支持 float / split / vsplit / tab 布局，可随时 toggle。
+- **交互式终端 TUI**：把 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)（`dsh --profile dsh-tui`）跑进 Neovim 内置 `:terminal`，支持 float / split / vsplit / tab 布局，可随时 toggle。
 
 ## ✨ 特性
 
 - 🪟 **浮窗交互** — 提问与结果都在一个浮动窗口里，按 `q` / `<Esc>` 关闭
 - 💬 **三种入口** — 直接提问、审查当前文件、处理选中文本
-- 🖥️ **集成 dsh-tianshu-tui** — 把交互式 TUI 跑进内置 `:terminal`，四种布局 + toggle
+- 🖥️ **集成 dsh-TUI** — 把交互式 TUI 跑进内置 `:terminal`，四种布局 + toggle
 - ⚡ **开箱即用** — 自动探测 `dsh` 路径（`PATH` → `~/.npm/_npx` 下的最新副本）
 - 🧩 **完全可定制** — 提示词模板、工作目录、超时、窗口样式、按键映射
 - 🔌 **Lua API** — 可被其它插件或配置脚本调用
@@ -40,13 +40,13 @@
 
 请参考 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 安装 `dsh`；或直接让插件自动探测 `~/.npm/_npx` 下的副本。
 
-要使用 TUI，还需把 tianshu 插件装进 `tui` profile（Node `^22.19 || >=24`，PATH 上有 `pnpm`）：
+要使用 TUI，还需把 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 装进 `dsh-tui` profile（Node `^22.19 || >=24`，PATH 上有 `pnpm`）：
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile tui add @huiliyi37/dsh-tianshu-tui
+npx -y @deepseek-ai/dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
 ```
 
-也可以在 Neovim 里直接跑 `:DshTuiInstall` 完成同样的事情。
+也可以在 Neovim 里直接跑 `:DshTuiInstall` 完成同样的事情。如果你已经按 [dsh-TUI 自己的说明](https://github.com/ccch1mneyyy/dsh-TUI#command-line-installation) 装好了它，就不用再装：`dsh-tui` 与 `dsh --profile dsh-tui` 等价。
 
 ## 📦 安装
 
@@ -96,29 +96,29 @@ Plug 'AlbinZhu/dsh.nvim'
 ## 🚀 快速上手
 
 | 命令 | 作用 |
-|---|---|
+| --- | --- |
 | `:Dsh 帮我看看这个项目` | 直接提问 |
 | `:Dsh` | 弹出输入框提问 |
 | `:DshFile` | 审查当前文件 |
 | `:'<,'>DshSelection` | 处理选中的文本 |
 | `:DshCancel` | 取消任务 |
 
-### 🖥️ dsh-tianshu-tui 集成
+### 🖥️ dsh-TUI 集成
 
 | 命令 | 作用 |
-|---|---|
+| --- | --- |
 | `:DshTui` | 打开/收起 TUI（默认布局） |
 | `:DshTui [文本]` | 打开后把文本输入到 TUI 输入行 |
 | `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | 指定布局打开 TUI |
 | `:DshTuiFile [路径]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用） |
 | `:'<,'>DshTuiSelection` | 把选中的代码粘贴进 TUI 输入行 |
 | `:DshTuiClose` | 关闭/收起 TUI 窗口 |
-| `:DshTuiInstall` | 安装 tianshu 插件到 tui profile |
+| `:DshTuiInstall` | 安装 dsh-TUI 到 `dsh-tui` profile |
 
 默认按键映射（在 `setup()` 中注册，可关闭）：
 
 | 按键 | 动作 |
-|---|---|
+| --- | --- |
 | `<leader>da` | 提问 |
 | `<leader>df` | 审查当前文件 |
 | `<leader>ds` (visual) | 处理选中文本 |
@@ -126,7 +126,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>tf` | 把当前文件加进 TUI |
 | `<leader>ts` (visual) | 把选中代码加进 TUI |
 
-TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（`Ctrl+Q` 退出等）在终端 job 模式下直接可用。
+TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）在终端 job 模式下直接可用。
 
 ## ⚙️ 配置
 
@@ -154,13 +154,12 @@ require("dsh").setup({
     tui_visual = "<leader>ts",
   },
   tui = {
-    profile = "tui",            -- tianshu TUI 所在的 profile
+    profile = "dsh-tui",        -- dsh-TUI 所在的 profile
     launcher_args = {},         -- 额外的启动器参数，例如 { "--patch", "/path/x.yml" }
     cwd = "root",               -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
     layout = "vsplit",          -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    skip_update = false,        -- true = 跳过启动时的 npm 版本检查
     float = {
       relative = "editor",
       width = 0.94,             -- 小数按编辑器尺寸换算；也支持整数（字符列）
@@ -169,7 +168,7 @@ require("dsh").setup({
       col = 0.03,
       anchor = "NW",
       border = "rounded",
-      title = " dsh-tianshu-tui ",
+      title = " dsh-tui ",
       title_pos = "center",
       style = "minimal",
       focusable = true,
@@ -228,15 +227,15 @@ dsh --profile headless -- "<任务文本>"
 TUI 集成则执行：
 
 ```
-dsh --profile tui
+dsh --profile dsh-tui
 ```
 
-并把该进程跑进 Neovim 内置 `:terminal` 缓冲区（dsh-tianshu-tui 是全屏交互式终端应用，不能像 headless 那样只收集 stdout）。窗口收起后进程继续在后台运行，再次 toggle 会复用同一个终端。
+并把该进程跑进 Neovim 内置 `:terminal` 缓冲区（dsh-TUI 是全屏交互式终端应用，不能像 headless 那样只收集 stdout）。窗口收起后进程继续在后台运行，再次 toggle 会复用同一个终端。
 
 把代码/文件「加进」TUI 时，走的是终端自身的输入面：
 
 - 选中的代码用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
-- 文件默认以 `@"路径"` **@mention** 引用，提交时 TUI 展开为内容摘要；`tui.file_mode = "content"` 则改为粘贴完整内容。
+- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）；`tui.file_mode = "content"` 则改为粘贴完整内容。
 
 两者都只放进输入行、不自动回车，方便你继续补充说明后再提交。
 
@@ -257,7 +256,7 @@ require("dsh").setup({ dsh_cmd = "/绝对/路径/dsh" })
 
 ## 🗺️ Roadmap
 
-- [x] 交互式终端 TUI 集成（dsh-tianshu-tui）
+- [x] 交互式终端 TUI 集成（dsh-TUI）
 - [ ] 流式输出（配合 dsh 未来支持增量输出）
 - [ ] 会话/多轮对话支持（headless 侧；TUI 侧已内置完整会话管理）
 - [ ] 把结果写入 split / quickfix

@@ -10,7 +10,7 @@
 ---@field prompts table               提示词模板
 ---@field keymaps table               按键映射（nil/false/"" 表示禁用）
 ---@field window table                浮窗配置
----@field tui table                   dsh-tianshu-tui 终端集成配置
+---@field tui table                   dsh-TUI 终端集成配置
 
 local M = {}
 
@@ -37,14 +37,13 @@ M.defaults = {
     tui_visual = "<leader>ts",
   },
   tui = {
-    profile = "tui",                             -- dsh profile（tianshu TUI 装在 tui profile 里）
-    launcher_args = {},                          -- 额外启动器参数，例如 { "--patch", "/path/x.yml" }
-    cwd = "root",                                -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
-    layout = "vsplit",                           -- 默认布局："float" | "split" | "vsplit" | "tab"
-    close_key = "q",                             -- 终端 normal 模式下关闭/收起窗口的按键
-    file_mode = "mention",                       -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    skip_update = false,                         -- true = 启动时跳过 npm 版本检查（设 DSH_TUI_SKIP_UPDATE=1）
-    plugin_name = "@huiliyi37/dsh-tianshu-tui",  -- 安装命令使用的包名
+    profile = "dsh-tui",                            -- dsh profile（dsh-TUI 装在 dsh-tui profile 里）
+    launcher_args = {},                             -- 额外启动器参数，例如 { "--patch", "/path/x.yml" }
+    cwd = "root",                                   -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
+    layout = "vsplit",                              -- 默认布局："float" | "split" | "vsplit" | "tab"
+    close_key = "q",                                -- 终端 normal 模式下关闭/收起窗口的按键
+    file_mode = "mention",                          -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
+    plugin_name = "@deepseek-harness-tui/dsh-tui",  -- 安装命令使用的包名
     float = {
       relative = "editor",
       width = 0.94,      -- 小数按编辑器尺寸换算；也支持整数（字符列）
@@ -53,7 +52,7 @@ M.defaults = {
       col = 0.03,        -- (1 - width) / 2 附近
       anchor = "NW",
       border = "rounded",
-      title = " dsh-tianshu-tui ",
+      title = " dsh-tui ",
       title_pos = "center",
       style = "minimal",
       focusable = true,

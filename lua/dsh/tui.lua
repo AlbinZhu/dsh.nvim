@@ -1,15 +1,18 @@
---- dsh-tianshu-tui 集成：在 Neovim 内置终端里运行 `dsh --profile tui`。
+--- dsh-TUI 集成：在 Neovim 内置终端里运行 `dsh --profile dsh-tui`。
 ---
---- 与 headless 一次性任务不同，tianshu TUI 是一个全屏交互式终端应用
+--- 与 headless 一次性任务不同，dsh-TUI 是一个全屏交互式终端应用
 --- （ANSI 转义、bracketed paste、鼠标等），因此把它跑进 `:terminal` 缓冲区，
 --- 支持 float / split / vsplit / tab 四种布局，并可反复 toggle（收起/恢复）。
 ---
---- 使用前需要先把 TUI 插件装进 tui profile（见 README / `:DshTuiInstall`）。
+--- 使用前需要先把 TUI 插件装进 dsh-tui profile（见 README / `:DshTuiInstall`）。
 
 local M = {}
 
 --- 当前主 TUI 的终端状态（buf / win / chan）。
 local state = { buf = nil, win = nil, chan = nil, layout = nil }
+
+--- 连按两次 Ctrl+C 退出的时间窗口（毫秒）：窗口内的第二次按下才会退出。
+local DOUBLE_CTRL_C_MS = 1000
 
 local function config()
   return require("dsh.config").get()
@@ -36,7 +39,7 @@ local function build_cmd(cfg)
   end
 
   local t = cfg.tui or {}
-  local profile = t.profile or "tui"
+  local profile = t.profile or "dsh-tui"
   local extra = t.launcher_args or {}
 
   -- dsh_cmd 含空格说明是 shell 前缀（例如 "npx -y @deepseek-ai/dsh"），
@@ -60,16 +63,11 @@ local function resolve_cwd(cfg)
   return require("dsh.context").resolve_cwd(t.cwd or cfg.cwd or "root")
 end
 
---- termopen 选项（cwd + 可选环境变量）。
+--- termopen 选项（cwd）。
 local function term_opts(cfg, extra)
-  local opts = vim.tbl_extend("force", {
+  return vim.tbl_extend("force", {
     cwd = resolve_cwd(cfg),
   }, extra or {})
-
-  if cfg.tui and cfg.tui.skip_update then
-    opts.env = vim.tbl_extend("force", opts.env or {}, { DSH_TUI_SKIP_UPDATE = "1" })
-  end
-  return opts
 end
 
 --- 复用已有缓冲区，否则新建 scratch 缓冲区。
@@ -174,6 +172,33 @@ local function attach_close_keymap(buf, t)
   vim.keymap.set("t", "<Esc>", close, { buffer = buf, desc = "dsh-tui: close/hide" })
 end
 
+--- 给 TUI 终端缓冲区挂上“连按两次 Ctrl+C 退出”（terminal 模式，即直接输入给 TUI 时）。
+--- 第一次按下照常转发给 TUI（保留它自己的 Ctrl+C 行为，例如中断生成）；
+--- DOUBLE_CTRL_C_MS 内的第二次按下则调用 M.exit() 退出。
+--- 上次按下的时间只存在于本函数的闭包里，所以每个新会话都从零开始计。
+local function attach_exit_keymap(buf, chan)
+  local last_press = nil
+  vim.keymap.set("t", "<C-c>", function()
+    local now = (vim.uv or vim.loop).now()
+    if last_press and now - last_press <= DOUBLE_CTRL_C_MS then
+      M.exit()
+      return
+    end
+    last_press = now
+    pcall(vim.api.nvim_chan_send, chan, "\3")
+  end, { buffer = buf, desc = "dsh-tui: 连按两次 Ctrl+C 退出" })
+end
+
+--- 关闭窗口并删除终端缓冲区（进程已结束或即将结束时调用）。
+local function teardown(buf, win)
+  if win and vim.api.nvim_win_is_valid(win) then
+    pcall(vim.api.nvim_win_close, win, true)
+  end
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    pcall(vim.api.nvim_buf_delete, buf, { force = true })
+  end
+end
+
 --- 在指定布局里启动一个命令终端。返回 { buf, win, chan }。
 ---@param cmd string|string[] 命令（shell 字符串或 List）
 ---@param opts table { layout?, title?, filetype?, on_exit?, existing_buf? }
@@ -247,20 +272,31 @@ function M.open(opts)
   local result = launch(cmd, {
     layout = layout,
     title = t.float.title,
-    on_exit = function(_job, code, _event)
+    on_exit = function(job, code, _event)
       vim.schedule(function()
-        state.chan = nil
-        if code ~= 0 then
-          vim.notify(
-            string.format("dsh-tui 已退出（exit code %s）。若提示 profile/插件缺失，请先运行 :DshTuiInstall。", tostring(code)),
-            vim.log.levels.ERROR
-          )
+        -- 会话已被 M.exit() 结束、或已被新会话替换：不动当前状态，也不报“异常退出”。
+        if state.chan ~= job then
+          return
         end
+        state.chan = nil
+        if code == 0 then
+          -- 正常退出（例如 TUI 自己连按两次 Ctrl+C）：面板跟着关闭，不留下空的终端窗口。
+          local buf, win = state.buf, state.win
+          state.buf, state.win, state.layout = nil, nil, nil
+          teardown(buf, win)
+          return
+        end
+        -- 异常退出：保留窗口，让用户看到 TUI 打印的错误信息；下次 open 时再清理。
+        vim.notify(
+          string.format("dsh-tui 已退出（exit code %s）。若提示 profile/插件缺失，请先运行 :DshTuiInstall。", tostring(code)),
+          vim.log.levels.ERROR
+        )
       end)
     end,
   })
 
   state.buf, state.win, state.chan, state.layout = result.buf, result.win, result.chan, result.layout
+  attach_exit_keymap(result.buf, result.chan)
 
   -- 打开后把 text 输入到 TUI 的输入行（稍等其启动完成）。
   if opts.text and opts.text ~= "" then
@@ -282,6 +318,18 @@ function M.close()
   state.win = nil
 end
 
+--- 退出 TUI：结束 dsh-tui 进程，关闭窗口并删除终端缓冲区。
+--- 与 close（收起、进程继续运行）不同；下次 open 会重新启动进程。
+function M.exit()
+  local buf, win, chan = state.buf, state.win, state.chan
+  -- 先清空状态：之后到达的 on_exit 会识别出这是已结束的会话，不会误伤新会话。
+  state.buf, state.win, state.chan, state.layout = nil, nil, nil, nil
+  if chan then
+    pcall(vim.fn.jobstop, chan)
+  end
+  teardown(buf, win)
+end
+
 --- toggle：开着就收起，收起/关闭了就恢复或重开。
 function M.toggle(opts)
   if state.win and vim.api.nvim_win_is_valid(state.win) then
@@ -301,7 +349,7 @@ function M.send(text)
   return true
 end
 
--- bracketed paste 起止标记（DEC 2004）。tianshu TUI 会把它当作整段粘贴，
+-- bracketed paste 起止标记（DEC 2004）。dsh-TUI 会把它当作整段粘贴，
 -- 多行代码/含转义字符的文本都能安全地进输入行，不会逐行提交或被终端转义吃掉。
 local PASTE_START = "\27[200~"
 local PASTE_END = "\27[201~"
@@ -408,8 +456,8 @@ function M.install()
   end
 
   local t = cfg.tui or {}
-  local profile = t.profile or "tui"
-  local plugin = t.plugin_name or "@huiliyi37/dsh-tianshu-tui"
+  local profile = t.profile or "dsh-tui"
+  local plugin = t.plugin_name or "@deepseek-harness-tui/dsh-tui"
 
   local argv
   if cmd:find("%s") then

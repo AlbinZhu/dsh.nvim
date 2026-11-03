@@ -21,13 +21,13 @@ _Bring the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (
 `dsh.nvim` is a lightweight Neovim plugin that brings `dsh` into the editor, supporting two ways of working:
 
 - **One-shot task mode** (`headless` profile): ask a question, review the current file, or send a visual selection to the AI agent from a floating window — the result is rendered directly in the float.
-- **Interactive terminal TUI**: run [dsh-tianshu-tui](https://github.com/huiliyi37/dsh-tianshu-tui) (`dsh --profile tui`) inside a Neovim built-in `:terminal`, with `float` / `split` / `vsplit` / `tab` layouts and one-key toggle.
+- **Interactive terminal TUI**: run [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) (`dsh --profile dsh-tui`) inside a Neovim built-in `:terminal`, with `float` / `split` / `vsplit` / `tab` layouts and one-key toggle.
 
 ## ✨ Features
 
 - 🪟 **Floating window interaction** — ask and read the result in one float; close with `q` / `<Esc>`
 - 💬 **Three entry points** — ask directly, review the current file, or process a visual selection
-- 🖥️ **dsh-tianshu-tui integration** — run the interactive TUI in a built-in `:terminal`, four layouts + toggle
+- 🖥️ **dsh-TUI integration** — run the interactive TUI in a built-in `:terminal`, four layouts + toggle
 - ⚡ **Works out of the box** — auto-detects the `dsh` binary (`PATH` → newest copy under `~/.npm/_npx`)
 - 🧩 **Fully customizable** — prompt templates, working directory, timeout, window style, keymaps
 - 🔌 **Lua API** — callable from other plugins or your config
@@ -40,13 +40,13 @@ _Bring the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (
 
 Install `dsh` by following [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness), or just let the plugin auto-detect the copy under `~/.npm/_npx`.
 
-To use the TUI, you also need to install the tianshu plugin into the `tui` profile (Node `^22.19 || >=24`, `pnpm` on `PATH`):
+To use the TUI, you also need to install [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) into the `dsh-tui` profile (Node `^22.19 || >=24`, `pnpm` on `PATH`):
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile tui add @huiliyi37/dsh-tianshu-tui
+npx -y @deepseek-ai/dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
 ```
 
-You can also run `:DshTuiInstall` inside Neovim to do the same.
+You can also run `:DshTuiInstall` inside Neovim to do the same. If you already installed dsh-TUI by [its own instructions](https://github.com/ccch1mneyyy/dsh-TUI#command-line-installation), you're set: `dsh-tui` and `dsh --profile dsh-tui` are equivalent.
 
 ## 📦 Installation
 
@@ -103,7 +103,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:'<,'>DshSelection` | Send the visual selection |
 | `:DshCancel` | Cancel the running job |
 
-### 🖥️ dsh-tianshu-tui integration
+### 🖥️ dsh-TUI integration
 
 | Command | Description |
 |---|---|
@@ -113,7 +113,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTuiFile [path]` | Add a file to the TUI input line (defaults to `@"path"` mention) |
 | `:'<,'>DshTuiSelection` | Paste the selection into the TUI input line |
 | `:DshTuiClose` | Close/hide the TUI window |
-| `:DshTuiInstall` | Install the tianshu plugin into the `tui` profile |
+| `:DshTuiInstall` | Install dsh-TUI into the `dsh-tui` profile |
 
 _Default keymaps (registered in `setup()`, can be disabled):_
 
@@ -126,7 +126,7 @@ _Default keymaps (registered in `setup()`, can be disabled):_
 | `<leader>tf` | Add file to TUI |
 | `<leader>ts` (visual) | Add selection to TUI |
 
-Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` / `<Esc>` to hide the window; the TUI's own shortcuts (e.g. `Ctrl+Q` to quit) work directly in terminal job mode.
+Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` / `<Esc>` to hide the window; the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history) work directly in terminal job mode.
 
 ## ⚙️ Configuration
 
@@ -154,13 +154,12 @@ require("dsh").setup({
     tui_visual = "<leader>ts",
   },
   tui = {
-    profile = "tui",            -- profile containing the tianshu TUI
+    profile = "dsh-tui",        -- profile containing dsh-TUI
     launcher_args = {},         -- extra launcher args, e.g. { "--patch", "/path/x.yml" }
     cwd = "root",               -- working directory: "root" | "buffer" | "cwd" | absolute path
     layout = "vsplit",          -- default layout: "float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- key to close/hide the window in terminal normal mode
     file_mode = "mention",      -- how to add files: "mention" (reference) | "content" (paste full content)
-    skip_update = false,        -- true = skip the npm version check at startup
     float = {
       relative = "editor",
       width = 0.94,             -- fractions are relative to the editor size; integers (character columns) are also accepted
@@ -169,7 +168,7 @@ require("dsh").setup({
       col = 0.03,
       anchor = "NW",
       border = "rounded",
-      title = " dsh-tianshu-tui ",
+      title = " dsh-tui ",
       title_pos = "center",
       style = "minimal",
       focusable = true,
@@ -228,15 +227,15 @@ The `headless` mode writes only the last non-empty reply to stdout (exit code `0
 The TUI integration runs:
 
 ```
-dsh --profile tui
+dsh --profile dsh-tui
 ```
 
-and puts that process into a Neovim built-in `:terminal` buffer (dsh-tianshu-tui is a full-screen interactive terminal app and cannot be treated like headless stdout collection). The process keeps running in the background while the window is hidden; toggling again reuses the same terminal.
+and puts that process into a Neovim built-in `:terminal` buffer (dsh-TUI is a full-screen interactive terminal app and cannot be treated like headless stdout collection). The process keeps running in the background while the window is hidden; toggling again reuses the same terminal.
 
 Adding code/files to the TUI goes through the terminal's own input surface:
 
 - Selected code is pasted wholesale into the input line using **bracketed paste** (`ESC[200~ … ESC[201~`) — multi-line code and escape characters are safe, and nothing gets submitted line by line;
-- Files are referenced by default as `@"path"` **@mention**, which the TUI expands into a content summary on submit; set `tui.file_mode = "content"` to paste the full content instead.
+- Files are referenced by default as `@"path"` **@mention**, which dsh-TUI expands into an attachment on submit (file text up to its size cap, images as image blocks); set `tui.file_mode = "content"` to paste the full content instead.
 
 Both only fill the input line without pressing Enter, so you can keep editing before submitting.
 
@@ -257,7 +256,7 @@ Press `q`, `<Esc>`, or `<C-c>`.
 
 ## 🗺️ Roadmap
 
-- [x] Interactive terminal TUI integration (dsh-tianshu-tui)
+- [x] Interactive terminal TUI integration (dsh-TUI)
 - [ ] Streaming output (once dsh supports incremental output)
 - [ ] Session / multi-turn conversation support (headless side; the TUI already has full session management)
 - [ ] Write results into a split / quickfix
