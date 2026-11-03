@@ -22,6 +22,13 @@ local function shellquote(s)
   return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
 end
 
+--- 聚焦 TUI 窗口后进入终端模式，让按键直接输入给 TUI（tui.auto_insert = false 时停在 normal 模式）。
+local function enter_insert()
+  if (config().tui or {}).auto_insert ~= false then
+    vim.cmd("startinsert")
+  end
+end
+
 --- 把 0 < v < 1 的小数按总量换算成整数；其它值原样返回。
 local function resolve_dim(value, total)
   if type(value) == "number" and value > 0 and value < 1 then
@@ -32,7 +39,8 @@ end
 
 --- 拼装启动命令。返回 List（可直接 exec）或 shell 字符串；失败返回 nil, err。
 ---@param cfg table 合并后的配置
-local function build_cmd(cfg)
+---@param app_args string[]|nil 传给 TUI 应用本身的参数（例如 { "--resume" }），排在启动器参数之后
+local function build_cmd(cfg, app_args)
   local cmd = require("dsh.runner").resolve_dsh_cmd(cfg)
   if not cmd then
     return nil, "找不到 dsh 可执行文件，请在 require('dsh').setup({ dsh_cmd = '/path/to/dsh' }) 中指定。"
@@ -41,6 +49,7 @@ local function build_cmd(cfg)
   local t = cfg.tui or {}
   local profile = t.profile or "dsh-tui"
   local extra = t.launcher_args or {}
+  app_args = app_args or {}
 
   -- dsh_cmd 含空格说明是 shell 前缀（例如 "npx -y @deepseek-ai/dsh"），
   -- 走 shell 字符串；否则用 List 直接 exec，避免 shell 转义问题。
@@ -49,11 +58,15 @@ local function build_cmd(cfg)
     for _, a in ipairs(extra) do
       table.insert(parts, shellquote(a))
     end
+    for _, a in ipairs(app_args) do
+      table.insert(parts, shellquote(a))
+    end
     return table.concat(parts, " "), nil
   end
 
   local argv = { cmd, "--profile", profile }
   vim.list_extend(argv, extra)
+  vim.list_extend(argv, app_args)
   return argv, nil
 end
 
@@ -227,7 +240,8 @@ local function launch(cmd, opts)
 end
 
 --- 打开（或聚焦）dsh TUI。
----@param opts table { layout?, text? } 可选；text 会在启动后尝试输入
+---@param opts? table { layout?, text?, args? } layout 覆盖默认布局；text 会在启动后输入到输入行；
+---  args 是传给 TUI 应用本身的参数（如 { "--resume" }），只在新启动进程时生效
 function M.open(opts)
   local cfg = config()
   opts = opts or {}
@@ -236,6 +250,7 @@ function M.open(opts)
   -- 已有一个可见且活着的 TUI：直接聚焦。
   if state.win and vim.api.nvim_win_is_valid(state.win) and state.chan then
     vim.api.nvim_set_current_win(state.win)
+    enter_insert()
     if opts.text and opts.text ~= "" then
       M.send(opts.text)
     end
@@ -257,13 +272,15 @@ function M.open(opts)
     vim.api.nvim_set_current_buf(buf)
     attach_close_keymap(buf, t)
     state.buf, state.win, state.layout = buf, win, layout
+    enter_insert()
     if opts.text and opts.text ~= "" then
       M.send(opts.text)
     end
     return state
   end
 
-  local cmd, err = build_cmd(cfg)
+  -- opts.args（例如 { "--resume" }）只在这里、即新启动进程时才会用到。
+  local cmd, err = build_cmd(cfg, opts.args)
   if not cmd then
     vim.notify("dsh-tui: " .. err, vim.log.levels.ERROR)
     return nil
@@ -297,6 +314,7 @@ function M.open(opts)
 
   state.buf, state.win, state.chan, state.layout = result.buf, result.win, result.chan, result.layout
   attach_exit_keymap(result.buf, result.chan)
+  enter_insert()
 
   -- 打开后把 text 输入到 TUI 的输入行（稍等其启动完成）。
   if opts.text and opts.text ~= "" then
@@ -337,6 +355,42 @@ function M.toggle(opts)
   else
     M.open(opts)
   end
+end
+
+--- 智能聚焦（对应 claudecode.nvim 的 :ClaudeCodeFocus）：
+--- 窗口可见且光标已在其中 → 收起；窗口可见但光标在别处 → 聚焦；
+--- 已被收起或还没启动 → 打开并聚焦。
+function M.focus(opts)
+  if M.is_open() then
+    if vim.api.nvim_get_current_win() == state.win then
+      M.close()
+    else
+      vim.api.nvim_set_current_win(state.win)
+      enter_insert()
+    end
+    return state
+  end
+  return M.open(opts)
+end
+
+--- 恢复会话（对应 claudecode.nvim 的 :ClaudeCode --resume）：以 `--resume [id]` 启动 TUI。
+--- 不带 id 即恢复上一次会话（在 dsh-tui 里与 -c / --continue 等价）。
+--- 启动参数只对新启动的进程生效：TUI 已在运行时只打开/聚焦它，并提示改用 TUI 里的 /resume。
+---@param session_id string|nil 会话 id；nil 或 "" 表示上一次会话
+function M.resume(session_id)
+  if state.chan then
+    M.open()
+    vim.notify(
+      "dsh-tui: TUI 已在运行，--resume 只对新启动的进程生效；请在 TUI 里输入 /resume 选择会话。",
+      vim.log.levels.WARN
+    )
+    return state
+  end
+  local args = { "--resume" }
+  if session_id and session_id ~= "" then
+    args[#args + 1] = session_id
+  end
+  return M.open({ args = args })
 end
 
 --- 向运行中的 TUI 发送文本（输入到输入行，不自动回车）。
@@ -384,16 +438,37 @@ local function when_ready(fn, opts)
   end
 end
 
---- 把文件引用为 @mention（提交时 TUI 会展开为内容摘要）。
---- 路径含空格/引号时用引号形 `@"..."` 包裹。
-local function mention_of(path)
-  return '@"' .. tostring(path):gsub("\\", "\\\\"):gsub('"', '\\"') .. '" '
+--- 规整行区间：1-based、闭区间、start <= end；没有起始行时返回 nil。
+local function normalize_range(start_line, end_line)
+  if not start_line then
+    return nil
+  end
+  local first = math.max(1, math.floor(start_line))
+  local last = math.max(1, math.floor(end_line or first))
+  if last < first then
+    first, last = last, first
+  end
+  return first, last
+end
+
+--- 把文件引用为 @mention（提交时 TUI 会把它展开为附件）。
+--- 路径统一用引号形 `@"..."` 包裹（含空格也安全）；可选的行区间以 `#L12-14`
+--- （单行 `#L12`）接在引号后面，与 dsh-TUI 的 mention 语法一致。
+local function mention_of(path, start_line, end_line)
+  local mention = '@"' .. tostring(path):gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
+  local first, last = normalize_range(start_line, end_line)
+  if first then
+    mention = mention .. (last > first and string.format("#L%d-%d", first, last) or string.format("#L%d", first))
+  end
+  return mention .. " "
 end
 
 --- 向 TUI 添加一个文件。
 --- 默认以 @mention 引用；file_mode == "content" 时粘贴完整内容。
 ---@param path string|nil 文件路径；nil = 当前缓冲区关联文件
-function M.add_file(path)
+---@param start_line integer|nil 起始行（1-based）；与 end_line 一起只引用/粘贴这一段
+---@param end_line integer|nil 结束行（含）；省略时只取 start_line 这一行
+function M.add_file(path, start_line, end_line)
   local cfg = config()
   local t = cfg.tui or {}
 
@@ -412,6 +487,14 @@ function M.add_file(path)
       vim.notify("dsh-tui: 无法读取文件 " .. p, vim.log.levels.ERROR)
       return nil
     end
+    local first, last = normalize_range(start_line, end_line)
+    if first then
+      local lines = vim.split(content, "\n", { plain = true })
+      if lines[#lines] == "" then
+        table.remove(lines) -- 文件以换行结尾时 split 会多出一个空元素，它不是一行
+      end
+      content = table.concat(vim.list_slice(lines, first, math.min(last, #lines)), "\n")
+    end
     -- 同步读取后再打开 TUI，避免 defer 期间缓冲区变化。
     when_ready(function()
       M.paste(content)
@@ -419,21 +502,73 @@ function M.add_file(path)
     return true
   end
 
-  local mention = mention_of(p)
+  local mention = mention_of(p, start_line, end_line)
   when_ready(function()
     M.paste(mention)
   end)
   return true
 end
 
---- 把当前视觉选择粘贴进 TUI 输入行（bracketed paste）。
+--- 把多个文件/目录一次性引用为 @mention（文件树多选、已标记的文件等）。
+--- 始终用 @mention 形式，不受 file_mode 影响：整个目录的内容不适合直接粘贴。
+---@param paths string[]
+function M.add_files(paths)
+  if type(paths) ~= "table" or #paths == 0 then
+    return nil
+  end
+  local parts = {}
+  for _, p in ipairs(paths) do
+    parts[#parts + 1] = mention_of(p)
+  end
+  local text = table.concat(parts)
+  when_ready(function()
+    M.paste(text)
+  end)
+  return true
+end
+
+--- 把文件树里光标下（或 visual 选中、已标记）的文件/目录添加到 TUI 输入行。
+---@param range integer[]|nil { first, last }：visual 选中的行；nil 表示只取光标所在项
+function M.add_tree(range)
+  local files, err = require("dsh.tree").selected_files(range)
+  if not files then
+    vim.notify("dsh-tui: " .. err, vim.log.levels.WARN)
+    return nil
+  end
+  return M.add_files(files)
+end
+
+--- 把当前视觉选择添加到 TUI 输入行（bracketed paste，不自动回车）。
+--- 在文件树里选中的是文件名行而不是代码，所以改为添加选中的文件（同 add_tree）。
+--- tui.selection_mode = "mention" 时不粘贴代码，而是引用 @文件#L起-止。
 function M.add_selection()
+  local ctx = require("dsh.context")
+
+  if require("dsh.tree").is_explorer() then
+    local first, last = ctx.visual_range()
+    return M.add_tree(first and { first, last } or nil)
+  end
+
   -- 同步抓取选择，避免 defer 到 TUI 启动完成后选区已失效。
-  local sel = require("dsh.context").visual_selection()
+  local sel = ctx.visual_selection()
   if not sel or sel == "" then
     vim.notify("dsh-tui: 没有可用的视觉选择（请先 visual 选中文本）。", vim.log.levels.WARN)
     return nil
   end
+
+  if (config().tui or {}).selection_mode == "mention" then
+    local path = ctx.current_file()
+    local first, last = ctx.visual_range()
+    -- 没有关联文件的缓冲区（未命名）无法引用，退回粘贴代码。
+    if path and first then
+      local mention = mention_of(path, first, last)
+      when_ready(function()
+        M.paste(mention)
+      end)
+      return true
+    end
+  end
+
   when_ready(function()
     M.paste(sel)
   end)

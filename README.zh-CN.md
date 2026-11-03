@@ -110,8 +110,11 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTui` | 打开/收起 TUI（默认布局） |
 | `:DshTui [文本]` | 打开后把文本输入到 TUI 输入行 |
 | `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | 指定布局打开 TUI |
-| `:DshTuiFile [路径]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用） |
+| `:DshTuiFocus` | 智能聚焦：光标在 TUI 里则收起，TUI 可见但光标在别处则聚焦，已收起或未启动则打开 |
+| `:DshTuiResume [id]` | 以 `--resume [id]` 启动 TUI（不给 id 就恢复上一次会话） |
+| `:DshTuiFile [路径] [起始行] [结束行]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用）；给出行号则只引用这一段；支持 `%`，不带路径 = 当前文件 |
 | `:'<,'>DshTuiSelection` | 把选中的代码粘贴进 TUI 输入行 |
+| `:DshTuiTreeAdd` | 在文件树里把光标下的文件（或选中的行）加进 TUI 输入行 |
 | `:DshTuiClose` | 关闭/收起 TUI 窗口 |
 | `:DshTuiInstall` | 安装 dsh-TUI 到 `dsh-tui` profile |
 
@@ -124,9 +127,27 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>ds` (visual) | 处理选中文本 |
 | `<leader>tt` | 打开/收起 TUI |
 | `<leader>tf` | 把当前文件加进 TUI |
-| `<leader>ts` (visual) | 把选中代码加进 TUI |
+| `<leader>ts` (visual) | 把选中代码加进 TUI（在文件树里则是选中的文件） |
+| `<leader>ts`（文件树里） | 把光标下的文件加进 TUI |
+| `<leader>tF` | 聚焦 / 收起 TUI（智能切换） |
+| `<leader>tr` | 恢复上一次 TUI 会话 |
 
-TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）在终端 job 模式下直接可用。
+打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）在终端 job 模式下直接可用。
+
+#### 从 claudecode.nvim 迁移？
+
+TUI 的命令和按键参照 [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim) 设计，习惯可以直接带过来：
+
+| claudecode.nvim | dsh.nvim |
+| --- | --- |
+| `:ClaudeCode` · `<leader>ac` | `:DshTui` · `<leader>tt` |
+| `:ClaudeCodeFocus` · `<leader>af` | `:DshTuiFocus` · `<leader>tF` |
+| `:ClaudeCode --resume` · `<leader>ar`（以及 `--continue` · `<leader>aC`） | `:DshTuiResume` · `<leader>tr` —— 在 dsh-TUI 里 `--resume`、`-c`、`--continue` 都表示“重新打开上一次会话” |
+| `:ClaudeCodeAdd %` · `<leader>ab` | `:DshTuiFile` · `<leader>tf`（也可带行号，如 `:DshTuiFile % 10 20`） |
+| `:ClaudeCodeSend` · `<leader>as`（visual） | `:DshTuiSelection` · `<leader>ts`（visual） |
+| `:ClaudeCodeTreeAdd` · `<leader>as`（文件树） | `:DshTuiTreeAdd` · `<leader>ts`（文件树） |
+| `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui /model` —— 把 `/model` 输入到输入行，按回车即可；dsh-TUI 在应用内选模型，没有 `--model` 启动参数 |
+| `:ClaudeCodeDiffAccept` / `DiffDeny` · `<leader>aa` / `<leader>ad` | —— claudecode.nvim 通过 IDE WebSocket 协议接收 diff；dsh 没有这套协议，所以没有可接受或拒绝的东西 |
 
 ## ⚙️ 配置
 
@@ -151,7 +172,10 @@ require("dsh").setup({
     ask_visual = "<leader>ds",
     tui = "<leader>tt",
     tui_file = "<leader>tf",
-    tui_visual = "<leader>ts",
+    tui_visual = "<leader>ts",  -- 选中的代码；在文件树里则是选中的文件
+    tui_focus = "<leader>tF",   -- 智能聚焦 / 收起（:DshTuiFocus）
+    tui_resume = "<leader>tr",  -- 恢复上一次会话（:DshTuiResume）
+    tui_tree = "<leader>ts",    -- 文件树里：添加光标下的文件（normal 模式，仅文件树缓冲区）
   },
   tui = {
     profile = "dsh-tui",        -- dsh-TUI 所在的 profile
@@ -160,6 +184,8 @@ require("dsh").setup({
     layout = "vsplit",          -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
+    selection_mode = "content", -- 添加选区方式："content"(粘贴代码) | "mention"(引用 @文件#L起-止)
+    auto_insert = true,         -- TUI 窗口获得焦点后自动进入终端模式（false = 停在 normal 模式）
     float = {
       relative = "editor",
       width = 0.94,             -- 小数按编辑器尺寸换算；也支持整数（字符列）
@@ -235,9 +261,13 @@ dsh --profile dsh-tui
 把代码/文件「加进」TUI 时，走的是终端自身的输入面：
 
 - 选中的代码用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
-- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）；`tui.file_mode = "content"` 则改为粘贴完整内容。
+- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）；`tui.file_mode = "content"` 则改为粘贴完整内容；
+- **行区间**用 dsh-TUI 的 `#L` 后缀：`:DshTuiFile 路径 12 14` 会添加 `@"路径"#L12-14`。设 `tui.selection_mode = "mention"` 后，visual 选区也以同样方式引用、不再粘贴代码 —— 更轻量，但 dsh-TUI 是从磁盘读文件，看不到未保存的修改（没有关联文件的缓冲区仍会粘贴代码）；
+- 在**文件树**里（nvim-tree、neo-tree、oil.nvim、mini.files、netrw，以及 snacks 的 explorer / picker 列表），`<leader>ts` 或 `:DshTuiTreeAdd` 会把光标下的文件或目录以 `@"路径"` 引用加进去。要一次加多个：在 visual 模式选中多行（neo-tree、oil、mini.files），或先做标记（nvim-tree 书签、netrw 的 `mf`、snacks 的 `<Tab>`）。文件树里的添加始终是 @mention，不受 `file_mode` 影响。
 
-两者都只放进输入行、不自动回车，方便你继续补充说明后再提交。
+这些都只放进输入行、不自动回车，方便你继续补充说明后再提交。
+
+`:DshTuiResume [id]` 会以 `--resume [id]` 启动 TUI。这个参数只在启动新进程时才生效：TUI 已在运行（哪怕窗口收起了）时只会把它显示出来，并提示你在 TUI 里用 `/resume`。
 
 ## ❓ 常见问题
 

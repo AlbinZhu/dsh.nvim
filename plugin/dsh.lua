@@ -63,12 +63,48 @@ vim.api.nvim_create_user_command("DshTuiClose", function()
   mod().close_tui()
 end, { desc = "Close/hide the dsh-TUI window" })
 
+vim.api.nvim_create_user_command("DshTuiFocus", function()
+  mod().focus_tui()
+end, { desc = "Smart focus: hide the dsh-TUI if you are in it, focus it if visible, otherwise open it" })
+
+vim.api.nvim_create_user_command("DshTuiResume", function(cmd)
+  mod().resume_tui(cmd.args ~= "" and cmd.args or nil)
+end, {
+  nargs = "?",
+  desc = "Start the dsh-TUI with --resume [session-id] (the last session by default)",
+})
+
+-- :DshTuiFile [path] [start] [end]；不带参数 = 当前缓冲区文件。
+-- complete = "file" 的命令，Neovim 会先把参数里的 % # ~ 展开，这里只负责转成绝对路径。
 vim.api.nvim_create_user_command("DshTuiFile", function(cmd)
-  mod().tui_add_file(table.concat(cmd.fargs, " "))
+  local function expand_path(p)
+    return p ~= "" and vim.fn.fnamemodify(p, ":p") or p
+  end
+
+  -- 末尾的纯数字（至多两个）是行号，但路径本身不能只剩一个数字。
+  local args = vim.deepcopy(cmd.fargs)
+  local lines = {}
+  while #args > 1 and #lines < 2 and args[#args]:match("^%d+$") do
+    table.insert(lines, 1, tonumber(table.remove(args)))
+  end
+
+  local path = expand_path(table.concat(args, " "))
+  if #lines > 0 and vim.fn.filereadable(path) ~= 1 then
+    -- 去掉数字后的路径并不存在：整串都当作路径（文件名里可以有空格和数字）。
+    path, lines = expand_path(table.concat(cmd.fargs, " ")), {}
+  end
+  mod().tui_add_file(path, lines[1], lines[2])
 end, {
   nargs = "*",
   complete = "file",
-  desc = "Add a file to the dsh-TUI (mention by default, or full content per tui.file_mode)",
+  desc = "Add a file to the dsh-TUI: [path] [start] [end] (mention by default, or content per tui.file_mode)",
+})
+
+vim.api.nvim_create_user_command("DshTuiTreeAdd", function(cmd)
+  mod().tui_add_tree(cmd.range > 0 and { cmd.line1, cmd.line2 } or nil)
+end, {
+  range = true,
+  desc = "Add the file(s) under the cursor (or selected lines) in a file explorer to the dsh-TUI input",
 })
 
 vim.api.nvim_create_user_command("DshTuiSelection", function()

@@ -34,7 +34,10 @@ M.defaults = {
     ask_visual = "<leader>ds",
     tui = "<leader>tt",
     tui_file = "<leader>tf",
-    tui_visual = "<leader>ts",
+    tui_visual = "<leader>ts",  -- 选中的代码；在文件树里则添加选中的文件
+    tui_focus = "<leader>tF",   -- 智能聚焦/收起 TUI（:DshTuiFocus）
+    tui_resume = "<leader>tr",  -- 恢复上一次会话（:DshTuiResume）
+    tui_tree = "<leader>ts",    -- 文件树里添加光标下的文件（仅文件树缓冲区的 normal 模式）
   },
   tui = {
     profile = "dsh-tui",                            -- dsh profile（dsh-TUI 装在 dsh-tui profile 里）
@@ -43,7 +46,9 @@ M.defaults = {
     layout = "vsplit",                              -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",                                -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",                          -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    plugin_name = "@deepseek-harness-tui/dsh-tui",  -- 安装命令使用的包名
+    selection_mode = "content",                     -- 添加选区方式："content"(粘贴代码) | "mention"(引用 @文件#L起-止)
+    auto_insert = true,                             -- 聚焦 TUI 窗口后自动进入终端模式（false = 停在 normal 模式）
+    plugin_name ="@deepseek-harness-tui/dsh-tui",  -- 安装命令使用的包名
     float = {
       relative = "editor",
       width = 0.94,      -- 小数按编辑器尺寸换算；也支持整数（字符列）

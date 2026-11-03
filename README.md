@@ -110,8 +110,11 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTui` | Toggle the TUI (default layout) |
 | `:DshTui [text]` | Open the TUI and type text into its input line |
 | `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | Open the TUI in a specific layout |
-| `:DshTuiFile [path]` | Add a file to the TUI input line (defaults to `@"path"` mention) |
+| `:DshTuiFocus` | Smart focus: hide the TUI if you are in it, focus it if it is visible, otherwise open it |
+| `:DshTuiResume [id]` | Start the TUI with `--resume [id]` (the last session when no id is given) |
+| `:DshTuiFile [path] [start] [end]` | Add a file to the TUI input line (an `@"path"` mention by default); `start`/`end` limit it to those lines; `%` works, no path = current file |
 | `:'<,'>DshTuiSelection` | Paste the selection into the TUI input line |
+| `:DshTuiTreeAdd` | In a file explorer, add the file under the cursor (or the selected lines) to the TUI input line |
 | `:DshTuiClose` | Close/hide the TUI window |
 | `:DshTuiInstall` | Install dsh-TUI into the `dsh-tui` profile |
 
@@ -124,9 +127,27 @@ _Default keymaps (registered in `setup()`, can be disabled):_
 | `<leader>ds` (visual) | Send selection |
 | `<leader>tt` | Toggle TUI |
 | `<leader>tf` | Add file to TUI |
-| `<leader>ts` (visual) | Add selection to TUI |
+| `<leader>ts` (visual) | Add selection to TUI (in a file explorer: the selected files) |
+| `<leader>ts` (in a file explorer) | Add the file under the cursor to TUI |
+| `<leader>tF` | Focus / hide TUI (smart toggle) |
+| `<leader>tr` | Resume the last TUI session |
 
-Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` / `<Esc>` to hide the window; the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history) work directly in terminal job mode.
+Opening or focusing the TUI puts you straight into terminal mode, so you can type right away (set `tui.auto_insert = false` to stay in normal mode). Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` / `<Esc>` to hide the window; the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history) work directly in terminal job mode.
+
+#### Coming from claudecode.nvim?
+
+The TUI commands and keymaps are modeled on [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim), so the habits carry over:
+
+| claudecode.nvim | dsh.nvim |
+|---|---|
+| `:ClaudeCode` · `<leader>ac` | `:DshTui` · `<leader>tt` |
+| `:ClaudeCodeFocus` · `<leader>af` | `:DshTuiFocus` · `<leader>tF` |
+| `:ClaudeCode --resume` · `<leader>ar` (and `--continue` · `<leader>aC`) | `:DshTuiResume` · `<leader>tr` — in dsh-TUI, `--resume`, `-c` and `--continue` all mean "reopen the last session" |
+| `:ClaudeCodeAdd %` · `<leader>ab` | `:DshTuiFile` · `<leader>tf` (also takes line numbers, e.g. `:DshTuiFile % 10 20`) |
+| `:ClaudeCodeSend` · `<leader>as` (visual) | `:DshTuiSelection` · `<leader>ts` (visual) |
+| `:ClaudeCodeTreeAdd` · `<leader>as` (file explorer) | `:DshTuiTreeAdd` · `<leader>ts` (file explorer) |
+| `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui /model` — types `/model` into the input, press Enter; dsh-TUI picks models in-app and has no `--model` flag |
+| `:ClaudeCodeDiffAccept` / `DiffDeny` · `<leader>aa` / `<leader>ad` | — claudecode.nvim receives diffs over the IDE WebSocket protocol; dsh has no such protocol, so there is nothing to accept or deny |
 
 ## ⚙️ Configuration
 
@@ -151,7 +172,10 @@ require("dsh").setup({
     ask_visual = "<leader>ds",
     tui = "<leader>tt",
     tui_file = "<leader>tf",
-    tui_visual = "<leader>ts",
+    tui_visual = "<leader>ts",  -- selected code; in a file explorer: the selected files
+    tui_focus = "<leader>tF",   -- smart focus / hide (:DshTuiFocus)
+    tui_resume = "<leader>tr",  -- resume the last session (:DshTuiResume)
+    tui_tree = "<leader>ts",    -- in a file explorer: add the file under the cursor (normal mode, buffer-local)
   },
   tui = {
     profile = "dsh-tui",        -- profile containing dsh-TUI
@@ -160,6 +184,8 @@ require("dsh").setup({
     layout = "vsplit",          -- default layout: "float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- key to close/hide the window in terminal normal mode
     file_mode = "mention",      -- how to add files: "mention" (reference) | "content" (paste full content)
+    selection_mode = "content", -- how to add a selection: "content" (paste the code) | "mention" (reference @file#L<start>-<end>)
+    auto_insert = true,         -- enter terminal mode when the TUI window gets focus (false = stay in normal mode)
     float = {
       relative = "editor",
       width = 0.94,             -- fractions are relative to the editor size; integers (character columns) are also accepted
@@ -235,9 +261,13 @@ and puts that process into a Neovim built-in `:terminal` buffer (dsh-TUI is a fu
 Adding code/files to the TUI goes through the terminal's own input surface:
 
 - Selected code is pasted wholesale into the input line using **bracketed paste** (`ESC[200~ … ESC[201~`) — multi-line code and escape characters are safe, and nothing gets submitted line by line;
-- Files are referenced by default as `@"path"` **@mention**, which dsh-TUI expands into an attachment on submit (file text up to its size cap, images as image blocks); set `tui.file_mode = "content"` to paste the full content instead.
+- Files are referenced by default as `@"path"` **@mention**, which dsh-TUI expands into an attachment on submit (file text up to its size cap, images as image blocks); set `tui.file_mode = "content"` to paste the full content instead;
+- A **line range** uses dsh-TUI's `#L` suffix: `:DshTuiFile path 12 14` adds `@"path"#L12-14`. With `tui.selection_mode = "mention"` a visual selection is added the same way instead of being pasted — lighter, but dsh-TUI reads the file from disk, so unsaved edits are not seen (a buffer without a file still pastes the code);
+- In a **file explorer** (nvim-tree, neo-tree, oil.nvim, mini.files, netrw, and snacks explorer / picker lists), `<leader>ts` or `:DshTuiTreeAdd` adds the file or directory under the cursor as an `@"path"` mention. For several at once, select lines in visual mode (neo-tree, oil, mini.files) or mark them first (nvim-tree bookmarks, netrw `mf`, snacks `<Tab>`). Tree adds are always mentions, whatever `file_mode` says.
 
-Both only fill the input line without pressing Enter, so you can keep editing before submitting.
+None of these press Enter — they only fill the input line, so you can keep editing before submitting.
+
+`:DshTuiResume [id]` starts the TUI with `--resume [id]`. The flag only applies when a new process starts: if the TUI is already running (even hidden) it is simply shown, with a hint to use `/resume` inside the TUI.
 
 ## ❓ FAQ
 

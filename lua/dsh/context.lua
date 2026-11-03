@@ -79,6 +79,23 @@ function M.visual_selection()
   return table.concat(lines, "\n")
 end
 
+--- 当前视觉选择的起止行（1-based，start <= end，钳制到缓冲区行数）。
+--- 从未做过 visual 选择时返回 nil。
+---@return integer|nil first
+---@return integer|nil last
+function M.visual_range()
+  local first = vim.fn.getpos("'<")[2]
+  local last = vim.fn.getpos("'>")[2]
+  if first == 0 or last == 0 then
+    return nil
+  end
+  if first > last then
+    first, last = last, first
+  end
+  local count = vim.api.nvim_buf_line_count(0)
+  return math.min(first, count), math.min(last, count)
+end
+
 --- 若当前处于 visual 模式则先退出，让 '< 与 '> 立即更新为刚选中的内容。
 --- x 模式按键映射的回调执行时仍在 visual 模式里，标记还停留在上一次选区；
 --- 不先退出的话读到的是旧选区（从未选过时则读空）。
