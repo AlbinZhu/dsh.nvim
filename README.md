@@ -132,7 +132,7 @@ _Default keymaps (registered in `setup()`, can be disabled):_
 | `<leader>tF` | Focus / hide TUI (smart toggle) |
 | `<leader>tr` | Resume the last TUI session |
 
-Opening or focusing the TUI puts you straight into terminal mode, so you can type right away (set `tui.auto_insert = false` to stay in normal mode). Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` / `<Esc>` to hide the window; the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history) work directly in terminal job mode.
+Opening or focusing the TUI puts you straight into terminal mode, so you can type right away (set `tui.auto_insert = false` to stay in normal mode). Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` (`tui.close_key`) to hide the window. In terminal job mode every key — including `q` and `<Esc>` — goes straight to the TUI, as do the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history).
 
 #### Coming from claudecode.nvim?
 

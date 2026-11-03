@@ -132,7 +132,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>tF` | 聚焦 / 收起 TUI（智能切换） |
 | `<leader>tr` | 恢复上一次 TUI 会话 |
 
-打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q` / `<Esc>` 收起窗口；TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）在终端 job 模式下直接可用。
+打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q`（`tui.close_key`）收起窗口。终端 job 模式下所有按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）也直接可用。
 
 #### 从 claudecode.nvim 迁移？
 

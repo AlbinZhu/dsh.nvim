@@ -175,14 +175,14 @@ local function open_window(cfg, layout, title, existing_buf)
   return open_float(cfg, title, buf)
 end
 
---- 给终端缓冲区挂上关闭按键（terminal-normal 模式）。
+--- 给终端缓冲区挂上收起按键：只在 terminal-normal 模式（先按 <C-\><C-n>）下生效。
+--- 不能绑在 terminal-job 模式（"t"）：那里所有按键都要原样交给 TUI，
+--- 绑上 q / <Esc> 会让 TUI 里打不出 q，也用不了 Esc（取消、关闭对话框、双击 Esc 回退等）。
 local function attach_close_keymap(buf, t)
   local close_key = t.close_key or "q"
-  local close = function()
+  vim.keymap.set("n", close_key, function()
     M.close()
-  end
-  vim.keymap.set("t", close_key, close, { buffer = buf, desc = "dsh-tui: close/hide", nowait = true })
-  vim.keymap.set("t", "<Esc>", close, { buffer = buf, desc = "dsh-tui: close/hide" })
+  end, { buffer = buf, desc = "dsh-tui: close/hide", nowait = true })
 end
 
 --- 给 TUI 终端缓冲区挂上“连按两次 Ctrl+C 退出”（terminal 模式，即直接输入给 TUI 时）。
