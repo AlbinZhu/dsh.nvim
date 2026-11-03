@@ -113,7 +113,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTuiFocus` | Smart focus: hide the TUI if you are in it, focus it if it is visible, otherwise open it |
 | `:DshTuiResume [id]` | Start the TUI with `--resume [id]` (the last session when no id is given) |
 | `:DshTuiFile [path] [start] [end]` | Add a file to the TUI input line (an `@"path"` mention by default); `start`/`end` limit it to those lines; `%` works, no path = current file |
-| `:'<,'>DshTuiSelection` | Paste the selection into the TUI input line |
+| `:'<,'>DshTuiSelection` | Add the selection to the TUI input line (an `@"file"#L12-14` reference by default, or the code itself) |
 | `:DshTuiTreeAdd` | In a file explorer, add the file under the cursor (or the selected lines) to the TUI input line |
 | `:DshTuiClose` | Close/hide the TUI window |
 | `:DshTuiInstall` | Install dsh-TUI into the `dsh-tui` profile |
@@ -184,7 +184,7 @@ require("dsh").setup({
     layout = "vsplit",          -- default layout: "float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- key to close/hide the window in terminal normal mode
     file_mode = "mention",      -- how to add files: "mention" (reference) | "content" (paste full content)
-    selection_mode = "content", -- how to add a selection: "content" (paste the code) | "mention" (reference @file#L<start>-<end>)
+    selection_mode = "mention", -- how to add a selection: "mention" (reference @file#L<start>-<end>; pastes the code when the buffer can't be referenced) | "content" (always paste the code)
     auto_insert = true,         -- enter terminal mode when the TUI window gets focus (false = stay in normal mode)
     float = {
       relative = "editor",
@@ -235,7 +235,7 @@ require("dsh").toggle_tui(opts?) -- toggle the TUI
 require("dsh").close_tui()     -- close/hide the TUI window
 require("dsh").tui_install()   -- install the TUI plugin into the tui profile
 require("dsh").tui_add_file(path?) -- add a file to the TUI (defaults to @mention)
-require("dsh").tui_add_selection() -- paste the visual selection into the TUI
+require("dsh").tui_add_selection() -- add the visual selection to the TUI (file name + lines, or the code)
 require("dsh").tui_paste(text) -- safely paste text using bracketed paste
 require("dsh.tui").send(text)  -- send text to the TUI input line
 ```
@@ -260,9 +260,9 @@ and puts that process into a Neovim built-in `:terminal` buffer (dsh-TUI is a fu
 
 Adding code/files to the TUI goes through the terminal's own input surface:
 
-- Selected code is pasted wholesale into the input line using **bracketed paste** (`ESC[200~ … ESC[201~`) — multi-line code and escape characters are safe, and nothing gets submitted line by line;
-- Files are referenced by default as `@"path"` **@mention**, which dsh-TUI expands into an attachment on submit (file text up to its size cap, images as image blocks); set `tui.file_mode = "content"` to paste the full content instead;
-- A **line range** uses dsh-TUI's `#L` suffix: `:DshTuiFile path 12 14` adds `@"path"#L12-14`. With `tui.selection_mode = "mention"` a visual selection is added the same way instead of being pasted — lighter, but dsh-TUI reads the file from disk, so unsaved edits are not seen (a buffer without a file still pastes the code);
+- A visual selection is added as a **file name + line range** by default (`tui.selection_mode = "mention"`, see below). Where that is not possible — an unnamed or non-file buffer, a file that is not on disk yet, or a buffer with unsaved changes — or with `tui.selection_mode = "content"`, the selected code is pasted wholesale into the input line using **bracketed paste** (`ESC[200~ … ESC[201~`) — multi-line code and escape characters are safe, and nothing gets submitted line by line;
+- Files are referenced by default as `@"path"` **@mention**, which dsh-TUI expands into an attachment on submit (file text up to its size cap, images as image blocks). The path is written relative to the TUI's working directory when the file is inside it, and absolute otherwise; set `tui.file_mode = "content"` to paste the full content instead;
+- A **line range** uses dsh-TUI's `#L` suffix: `:DshTuiFile lua/foo.lua 12 14` adds `@"lua/foo.lua"#L12-14`. A visual selection is added the same way by default — the input box shows just the file name and line numbers, like claudecode.nvim, instead of the pasted code. dsh-TUI reads the file from disk, which is why a buffer with unsaved changes (or one that is not a regular file on disk) falls back to pasting the code; set `tui.selection_mode = "content"` to always paste;
 - In a **file explorer** (nvim-tree, neo-tree, oil.nvim, mini.files, netrw, and snacks explorer / picker lists), `<leader>ts` or `:DshTuiTreeAdd` adds the file or directory under the cursor as an `@"path"` mention. For several at once, select lines in visual mode (neo-tree, oil, mini.files) or mark them first (nvim-tree bookmarks, netrw `mf`, snacks `<Tab>`). Tree adds are always mentions, whatever `file_mode` says.
 
 None of these press Enter — they only fill the input line, so you can keep editing before submitting.

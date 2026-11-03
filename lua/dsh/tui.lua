@@ -8,8 +8,8 @@
 
 local M = {}
 
---- 当前主 TUI 的终端状态（buf / win / chan）。
-local state = { buf = nil, win = nil, chan = nil, layout = nil }
+--- 当前主 TUI 的终端状态（buf / win / chan / layout；cwd 是进程启动时的工作目录）。
+local state = { buf = nil, win = nil, chan = nil, layout = nil, cwd = nil }
 
 --- 连按两次 Ctrl+C 退出的时间窗口（毫秒）：窗口内的第二次按下才会退出。
 local DOUBLE_CTRL_C_MS = 1000
@@ -212,7 +212,7 @@ local function teardown(buf, win)
   end
 end
 
---- 在指定布局里启动一个命令终端。返回 { buf, win, chan }。
+--- 在指定布局里启动一个命令终端。返回 { buf, win, chan, layout, cwd }（cwd 是进程的工作目录）。
 ---@param cmd string|string[] 命令（shell 字符串或 List）
 ---@param opts table { layout?, title?, filetype?, on_exit?, existing_buf? }
 local function launch(cmd, opts)
@@ -232,11 +232,11 @@ local function launch(cmd, opts)
     local top = term_opts(cfg, { on_exit = opts.on_exit })
     local chan = vim.fn.termopen(cmd, top)
     attach_close_keymap(buf, t)
-    return { buf = buf, win = win, chan = chan, layout = layout }
+    return { buf = buf, win = win, chan = chan, layout = layout, cwd = top.cwd }
   end
 
   attach_close_keymap(buf, t)
-  return { buf = buf, win = win, chan = state.chan, layout = layout }
+  return { buf = buf, win = win, chan = state.chan, layout = layout, cwd = state.cwd }
 end
 
 --- 打开（或聚焦）dsh TUI。
@@ -299,7 +299,7 @@ function M.open(opts)
         if code == 0 then
           -- 正常退出（例如 TUI 自己连按两次 Ctrl+C）：面板跟着关闭，不留下空的终端窗口。
           local buf, win = state.buf, state.win
-          state.buf, state.win, state.layout = nil, nil, nil
+          state.buf, state.win, state.layout, state.cwd = nil, nil, nil, nil
           teardown(buf, win)
           return
         end
@@ -313,6 +313,7 @@ function M.open(opts)
   })
 
   state.buf, state.win, state.chan, state.layout = result.buf, result.win, result.chan, result.layout
+  state.cwd = result.cwd
   attach_exit_keymap(result.buf, result.chan)
   enter_insert()
 
@@ -341,7 +342,7 @@ end
 function M.exit()
   local buf, win, chan = state.buf, state.win, state.chan
   -- 先清空状态：之后到达的 on_exit 会识别出这是已结束的会话，不会误伤新会话。
-  state.buf, state.win, state.chan, state.layout = nil, nil, nil, nil
+  state.buf, state.win, state.chan, state.layout, state.cwd = nil, nil, nil, nil, nil
   if chan then
     pcall(vim.fn.jobstop, chan)
   end
@@ -451,11 +452,26 @@ local function normalize_range(start_line, end_line)
   return first, last
 end
 
+--- 引用文件时显示的路径：文件在 TUI 工作目录之下就写相对路径（更短，和 claudecode.nvim 一样），
+--- 否则写绝对路径。dsh-TUI 把相对路径按会话工作目录解析、绝对路径原样使用，两种写法都有效。
+--- 工作目录取 TUI 进程启动时的目录（state.cwd），所以只能在 TUI 已经启动之后调用。
+local function display_path(path)
+  local cwd = state.chan and state.cwd
+  if not cwd or cwd == "" then
+    return path
+  end
+  local base = (cwd:gsub("/+$", "")) .. "/"
+  if #path > #base and path:sub(1, #base) == base then
+    return path:sub(#base + 1)
+  end
+  return path
+end
+
 --- 把文件引用为 @mention（提交时 TUI 会把它展开为附件）。
 --- 路径统一用引号形 `@"..."` 包裹（含空格也安全）；可选的行区间以 `#L12-14`
 --- （单行 `#L12`）接在引号后面，与 dsh-TUI 的 mention 语法一致。
 local function mention_of(path, start_line, end_line)
-  local mention = '@"' .. tostring(path):gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
+  local mention = '@"' .. tostring(display_path(path)):gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
   local first, last = normalize_range(start_line, end_line)
   if first then
     mention = mention .. (last > first and string.format("#L%d-%d", first, last) or string.format("#L%d", first))
@@ -502,9 +518,9 @@ function M.add_file(path, start_line, end_line)
     return true
   end
 
-  local mention = mention_of(p, start_line, end_line)
+  -- 引用文本要等 TUI 就绪后再拼：相对路径是按 TUI 实际启动的目录算的。
   when_ready(function()
-    M.paste(mention)
+    M.paste(mention_of(p, start_line, end_line))
   end)
   return true
 end
@@ -516,13 +532,13 @@ function M.add_files(paths)
   if type(paths) ~= "table" or #paths == 0 then
     return nil
   end
-  local parts = {}
-  for _, p in ipairs(paths) do
-    parts[#parts + 1] = mention_of(p)
-  end
-  local text = table.concat(parts)
+  -- 同上：等 TUI 就绪后再拼，路径才能按它实际的工作目录写成相对路径。
   when_ready(function()
-    M.paste(text)
+    local parts = {}
+    for _, p in ipairs(paths) do
+      parts[#parts + 1] = mention_of(p)
+    end
+    M.paste(table.concat(parts))
   end)
   return true
 end
@@ -540,7 +556,7 @@ end
 
 --- 把当前视觉选择添加到 TUI 输入行（bracketed paste，不自动回车）。
 --- 在文件树里选中的是文件名行而不是代码，所以改为添加选中的文件（同 add_tree）。
---- tui.selection_mode = "mention" 时不粘贴代码，而是引用 @文件#L起-止。
+--- 默认（tui.selection_mode = "mention"）不粘贴代码，而是引用 @文件#L起-止；设为 "content" 则总是粘贴代码。
 function M.add_selection()
   local ctx = require("dsh.context")
 
@@ -559,11 +575,12 @@ function M.add_selection()
   if (config().tui or {}).selection_mode == "mention" then
     local path = ctx.current_file()
     local first, last = ctx.visual_range()
-    -- 没有关联文件的缓冲区（未命名）无法引用，退回粘贴代码。
-    if path and first then
-      local mention = mention_of(path, first, last)
+    -- dsh-TUI 按磁盘上的文件取行，所以只有“磁盘内容 == 缓冲区内容”时引用才可靠。
+    -- 未命名、非普通文件（fugitive:// 之类）、文件还没写到磁盘、或有未保存修改的缓冲区，
+    -- 都退回粘贴代码：免得 TUI 读不到文件，或按旧内容取错行。
+    if path and first and vim.bo.buftype == "" and not vim.bo.modified and vim.fn.filereadable(path) == 1 then
       when_ready(function()
-        M.paste(mention)
+        M.paste(mention_of(path, first, last))
       end)
       return true
     end

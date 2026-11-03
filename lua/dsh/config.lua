@@ -46,7 +46,7 @@ M.defaults = {
     layout = "vsplit",                              -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",                                -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",                          -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    selection_mode = "content",                     -- 添加选区方式："content"(粘贴代码) | "mention"(引用 @文件#L起-止)
+    selection_mode = "mention",                     -- 添加选区方式："mention"(引用 @文件#L起-止；缓冲区不可靠时自动粘贴代码) | "content"(总是粘贴代码)
     auto_insert = true,                             -- 聚焦 TUI 窗口后自动进入终端模式（false = 停在 normal 模式）
     plugin_name ="@deepseek-harness-tui/dsh-tui",  -- 安装命令使用的包名
     float = {

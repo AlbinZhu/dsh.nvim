@@ -62,10 +62,14 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	把文件加进 TUI 输入行：默认以 `@"路径"` @mention 引用（提交时由 dsh-TUI 展开为附件），
 	`tui.file_mode = "content"` 时粘贴完整内容。给出行号时只引用/粘贴这一段，引用写作
 	`@"路径"#L12-14`。路径支持 `%`；不带参数时用当前缓冲区文件。
+	引用里的路径：文件位于 TUI 工作目录之下时写成相对路径，否则写绝对路径。
 
 :'<,'>DshTuiSelection				*dsh-:DshTuiSelection*
-	把 visual 选中的代码粘贴进 TUI 输入行（bracketed paste，不自动回车）。
-	`tui.selection_mode = "mention"` 时改为引用 `@"路径"#L起-止`。在文件树里则添加选中的文件。
+	把 visual 选区加进 TUI 输入行（不自动回车）。默认只在输入框里显示文件名和行号
+	`@"路径"#L起-止`（像 claudecode.nvim），不粘贴代码；缓冲区没有文件、文件还没写到磁盘
+	或有未保存的修改时，会退回成粘贴代码（bracketed paste）。`tui.selection_mode = "content"`
+	则总是粘贴代码。
+	在文件树里则添加选中的文件。
 
 :DshTuiTreeAdd					*dsh-:DshTuiTreeAdd*
 	在文件树里把光标下的文件/目录（或 `:'<,'>` 选中的行）加进 TUI 输入行，始终是
@@ -105,7 +109,7 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	    layout = "vsplit",     -- "float" | "split" | "vsplit" | "tab"
 	    close_key = "q",       -- 终端 normal 模式下关闭/收起窗口
 	    file_mode = "mention", -- "mention"(引用) | "content"(粘贴全文)
-	    selection_mode = "content", -- "content"(粘贴代码) | "mention"(引用 @文件#L起-止)
+	    selection_mode = "mention", -- "mention"(引用 @文件#L起-止；缓冲区不可靠时粘贴代码) | "content"(总是粘贴)
 	    auto_insert = true,    -- 聚焦 TUI 窗口后自动进入终端模式
 	    float = {
 	      relative = "editor", width = 0.94, height = 0.9,
@@ -144,7 +148,7 @@ TUI 自身的快捷键（如 `Ctrl+B` 侧边栏）也直接可用。
 	require("dsh").tui_add_file(path?, start_line?, end_line?)	向 TUI 添加文件（可带行区间）
 	require("dsh").tui_add_files(paths)	一次引用多个文件/目录
 	require("dsh").tui_add_tree(range?)	把文件树里光标下/选中的文件加进 TUI
-	require("dsh").tui_add_selection()	把选区粘贴进 TUI
+	require("dsh").tui_add_selection()	把选区加进 TUI（文件名+行号，或代码）
 	require("dsh").tui_paste(text)	安全粘贴文本（bracketed paste）
 	require("dsh.tui").send(text)	向 TUI 输入行发送文本
 
@@ -165,8 +169,8 @@ TUI 自身的快捷键（如 `Ctrl+B` 侧边栏）也直接可用。
 - 文件树多选：neo-tree、oil、mini.files 在 visual 模式选中多行；nvim-tree 用书签、netrw
   用 `mf` 标记、snacks 用 `<Tab>` 选中，再执行 |dsh-:DshTuiTreeAdd|。文件树里的添加始终是
   @mention，不受 `tui.file_mode` 影响。
-- `tui.selection_mode = "mention"` 引用的是磁盘上的文件，看不到未保存的修改；没有关联
-  文件的缓冲区仍会粘贴代码。
+- 选区默认（`tui.selection_mode = "mention"`）引用的是磁盘上的文件，所以缓冲区有未保存的
+  修改、没有文件名、不是普通文件或文件还没写到磁盘时，会退回成粘贴代码。
 - 与 claudecode.nvim 的对应关系见 README 的 "Coming from claudecode.nvim?" 一节。
 
 vim:tw=78:ts=8:noet:ft=help:norl:

@@ -113,7 +113,7 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:DshTuiFocus` | 智能聚焦：光标在 TUI 里则收起，TUI 可见但光标在别处则聚焦，已收起或未启动则打开 |
 | `:DshTuiResume [id]` | 以 `--resume [id]` 启动 TUI（不给 id 就恢复上一次会话） |
 | `:DshTuiFile [路径] [起始行] [结束行]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用）；给出行号则只引用这一段；支持 `%`，不带路径 = 当前文件 |
-| `:'<,'>DshTuiSelection` | 把选中的代码粘贴进 TUI 输入行 |
+| `:'<,'>DshTuiSelection` | 把选区加进 TUI 输入行（默认是 `@"文件"#L12-14` 引用，也可以粘贴代码本身） |
 | `:DshTuiTreeAdd` | 在文件树里把光标下的文件（或选中的行）加进 TUI 输入行 |
 | `:DshTuiClose` | 关闭/收起 TUI 窗口 |
 | `:DshTuiInstall` | 安装 dsh-TUI 到 `dsh-tui` profile |
@@ -184,7 +184,7 @@ require("dsh").setup({
     layout = "vsplit",          -- 默认布局："float" | "split" | "vsplit" | "tab"
     close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    selection_mode = "content", -- 添加选区方式："content"(粘贴代码) | "mention"(引用 @文件#L起-止)
+    selection_mode = "mention", -- 添加选区方式："mention"(引用 @文件#L起-止；缓冲区不可靠时自动粘贴代码) | "content"(总是粘贴代码)
     auto_insert = true,         -- TUI 窗口获得焦点后自动进入终端模式（false = 停在 normal 模式）
     float = {
       relative = "editor",
@@ -235,7 +235,7 @@ require("dsh").toggle_tui(opts?) -- toggle TUI
 require("dsh").close_tui()     -- 收起/关闭 TUI 窗口
 require("dsh").tui_install()   -- 安装 TUI 插件到 tui profile
 require("dsh").tui_add_file(path?) -- 把文件加进 TUI（默认 @mention 引用）
-require("dsh").tui_add_selection() -- 把视觉选区粘贴进 TUI
+require("dsh").tui_add_selection() -- 把视觉选区加进 TUI（文件名+行号，或代码）
 require("dsh").tui_paste(text) -- 以 bracketed paste 安全粘贴文本
 require("dsh.tui").send(text)  -- 向 TUI 输入行发送文本
 ```
@@ -260,9 +260,9 @@ dsh --profile dsh-tui
 
 把代码/文件「加进」TUI 时，走的是终端自身的输入面：
 
-- 选中的代码用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
-- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）；`tui.file_mode = "content"` 则改为粘贴完整内容；
-- **行区间**用 dsh-TUI 的 `#L` 后缀：`:DshTuiFile 路径 12 14` 会添加 `@"路径"#L12-14`。设 `tui.selection_mode = "mention"` 后，visual 选区也以同样方式引用、不再粘贴代码 —— 更轻量，但 dsh-TUI 是从磁盘读文件，看不到未保存的修改（没有关联文件的缓冲区仍会粘贴代码）；
+- visual 选区默认以**文件名 + 行号**加进去（`tui.selection_mode = "mention"`，见下）。遇到没法引用的情况（未命名或非文件缓冲区、文件还没写到磁盘、缓冲区有未保存的修改），或设了 `tui.selection_mode = "content"` 时，选中的代码会用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
+- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）。文件位于 TUI 工作目录之下时路径写成相对路径，否则写绝对路径；`tui.file_mode = "content"` 则改为粘贴完整内容；
+- **行区间**用 dsh-TUI 的 `#L` 后缀：`:DshTuiFile lua/foo.lua 12 14` 会添加 `@"lua/foo.lua"#L12-14`。visual 选区默认也以同样方式引用：输入框里只显示文件名和行号（像 claudecode.nvim），不再粘贴代码。dsh-TUI 是从磁盘读文件的，所以有未保存修改的缓冲区（或不是磁盘上普通文件的缓冲区）会退回成粘贴代码；设 `tui.selection_mode = "content"` 则总是粘贴；
 - 在**文件树**里（nvim-tree、neo-tree、oil.nvim、mini.files、netrw，以及 snacks 的 explorer / picker 列表），`<leader>ts` 或 `:DshTuiTreeAdd` 会把光标下的文件或目录以 `@"路径"` 引用加进去。要一次加多个：在 visual 模式选中多行（neo-tree、oil、mini.files），或先做标记（nvim-tree 书签、netrw 的 `mf`、snacks 的 `<Tab>`）。文件树里的添加始终是 @mention，不受 `file_mode` 影响。
 
 这些都只放进输入行、不自动回车，方便你继续补充说明后再提交。
