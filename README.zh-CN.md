@@ -1,73 +1,67 @@
 # dsh.nvim
 
-在 Neovim 中使用 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 AI 编码代理
+在 Neovim 里直接和 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+编码代理对话，不用离开编辑器。
 
 [![Neovim](https://img.shields.io/badge/Neovim-%3E%3D0.10-57A143?logo=neovim&logoColor=white)](https://neovim.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/AlbinZhu/dsh.nvim?style=social)](https://github.com/AlbinZhu/dsh.nvim)
 
-<div align="center">
-
 [**English**](./README.md) · 简体中文
 
-</div>
-
-## 📸 截图
-
+<!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="doc/screenshot.jpg" alt="dsh.nvim 截图" width="100%">
+  <img src="doc/screenshot.jpg" width="100%"
+    alt="dsh.nvim 截图：分屏里的 dsh TUI，旁边是你的代码">
 </p>
+<!-- markdownlint-enable MD033 -->
 
-`dsh.nvim` 是一个轻量级 Neovim 插件，把 `dsh` 接入编辑器，支持两种工作方式：
+用浮窗快速提问，也可以在分屏里打开完整的交互式 `dsh` 会话。
+当前文件和选中的代码，只需一个按键就能带进对话。
 
-- **一次性任务模式**（`headless` profile）：在浮窗里提问、审查当前文件、或把选中的代码发给 AI 代理，结果直接显示在浮窗中。
-- **交互式终端 TUI**：把 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)（`dsh --profile dsh-tui`）跑进 Neovim 内置 `:terminal`，支持 float / split / vsplit / tab 布局，可随时 toggle。
+## ✨ 为什么用 dsh.nvim
 
-## ✨ 特性
+- 🪟 **结果在浮窗里** — 提问、审查当前文件、解释选中的代码，回复直接显示在
+  浮窗中。
+- 🖥️ **完整的 TUI 就在 Neovim 里** — 交互式的
+  [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 跑在分屏中，支持会话和
+  `/resume`。
+- 📎 **一个按键带上上下文** — 文件、选区或行区间都能以 `@` 引用的形式加进输入框，
+  输入框保持简短。
+- ⌨️ **操作习惯一致** — 命令和 `Ctrl+h/j/k/l` 窗口切换与 claudecode.nvim 相同。
+- ⚡ **开箱即用** — 自动找到 `PATH` 或 `~/.npm/_npx` 下的 `dsh`。
+- 🧩 **可配置** — 提示词、按键、布局、窗口样式，还有 Lua API。
 
-- 🪟 **浮窗交互** — 提问与结果都在一个浮动窗口里，按 `q` / `<Esc>` 关闭
-- 💬 **三种入口** — 直接提问、审查当前文件、处理选中文本
-- 🖥️ **集成 dsh-TUI** — 把交互式 TUI 跑进内置 `:terminal`，四种布局 + toggle
-- ⚡ **开箱即用** — 自动探测 `dsh` 路径（`PATH` → `~/.npm/_npx` 下的最新副本）
-- 🧩 **完全可定制** — 提示词模板、工作目录、超时、窗口样式、按键映射
-- 🔌 **Lua API** — 可被其它插件或配置脚本调用
-- 🔧 **兼容 Neovim ≥ 0.10** — 基于 `vim.system` / `vim.fs`
+## 🚀 快速上手
 
-## 📋 要求
-
-- Neovim ≥ 0.10
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 `dsh` CLI（`@deepseek-ai/dsh`）
-
-请参考 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 安装 `dsh`；或直接让插件自动探测 `~/.npm/_npx` 下的副本。
-
-要使用 TUI，还需把 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 装进 `dsh-tui` profile（Node `^22.19 || >=24`，PATH 上有 `pnpm`）：
+先安装 `dsh` 命令行，再添加插件（见下文「安装」）：
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+npm install -g @deepseek-ai/dsh
 ```
 
-也可以在 Neovim 里直接跑 `:DshTuiInstall` 完成同样的事情。如果你已经按 [dsh-TUI 自己的说明](https://github.com/ccch1mneyyy/dsh-TUI#command-line-installation) 装好了它，就不用再装：`dsh-tui` 与 `dsh --profile dsh-tui` 等价。
+然后在 Neovim 里试试：
+
+- `:Dsh 介绍一下这个项目` —— 提问
+- `:DshFile` —— 审查当前文件
+- `<leader>tt` —— 打开 TUI（第一次先运行一次 `:DshTuiInstall`）
 
 ## 📦 安装
+
+### 依赖
+
+- Neovim 0.10 或更新版本
+- `dsh` 命令行：`npm install -g @deepseek-ai/dsh`，或者让插件自动找到
+  `~/.npm/_npx` 下的副本
+- 使用 TUI 还需要 Node.js `^22.19` 或 `>=24`、`pnpm`，以及 dsh-TUI 插件
+  （运行 `:DshTuiInstall`）
 
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
 ```lua
 {
   "AlbinZhu/dsh.nvim",
-  lazy = false, -- 插件很小，直接启动加载即可
-  config = function()
-    require("dsh").setup()
-  end,
-}
-```
-
-按需懒加载（可选）：
-
-```lua
-{
-  "AlbinZhu/dsh.nvim",
-  event = "VeryLazy",
+  lazy = false, -- 插件很小，启动时加载，命令随时可用
   config = function()
     require("dsh").setup()
   end,
@@ -93,212 +87,197 @@ Plug 'AlbinZhu/dsh.nvim'
 " lua require("dsh").setup()
 ```
 
-## 🚀 快速上手
+## 💬 提问
+
+回复显示在浮窗里，按 `q`、`<Esc>` 或 `<C-c>` 关闭。
 
 | 命令 | 作用 |
 | --- | --- |
-| `:Dsh 帮我看看这个项目` | 直接提问 |
-| `:Dsh` | 弹出输入框提问 |
+| `:Dsh <问题>` | 提问（不带参数会弹出输入框） |
 | `:DshFile` | 审查当前文件 |
-| `:'<,'>DshSelection` | 处理选中的文本 |
-| `:DshCancel` | 取消任务 |
-
-### 🖥️ dsh-TUI 集成
-
-| 命令 | 作用 |
-| --- | --- |
-| `:DshTui` | 打开/收起 TUI（默认布局） |
-| `:DshTui [文本]` | 打开后把文本输入到 TUI 输入行 |
-| `:DshTuiFloat` / `:DshTuiSplit` / `:DshTuiVSplit` / `:DshTuiTab` | 指定布局打开 TUI |
-| `:DshTuiFocus` | 智能聚焦：光标在 TUI 里则收起，TUI 可见但光标在别处则聚焦，已收起或未启动则打开 |
-| `:DshTuiResume [id]` | 以 `--resume [id]` 启动 TUI（不给 id 就恢复上一次会话） |
-| `:DshTuiFile [路径] [起始行] [结束行]` | 把文件加进 TUI 输入行（默认 `@"路径"` 引用）；给出行号则只引用这一段；支持 `%`，不带路径 = 当前文件 |
-| `:'<,'>DshTuiSelection` | 把选区加进 TUI 输入行（默认是 `@"文件"#L12-14` 引用，也可以粘贴代码本身） |
-| `:DshTuiTreeAdd` | 在文件树里把光标下的文件（或选中的行）加进 TUI 输入行 |
-| `:DshTuiClose` | 关闭/收起 TUI 窗口 |
-| `:DshTuiInstall` | 安装 dsh-TUI 到 `dsh-tui` profile |
-
-默认按键映射（在 `setup()` 中注册，可关闭）：
+| `:'<,'>DshSelection` | 处理选中的代码 |
+| `:DshCancel` | 取消正在运行的任务 |
 
 | 按键 | 动作 |
 | --- | --- |
 | `<leader>da` | 提问 |
 | `<leader>df` | 审查当前文件 |
-| `<leader>ds` (visual) | 处理选中文本 |
+| `<leader>ds`（visual） | 处理选中的代码 |
+
+## 🖥️ 使用 TUI
+
+交互式 dsh-TUI 跑在 Neovim 终端里，默认是竖分屏，也可以用横分屏、浮窗或标签页。
+
+| 命令 | 作用 |
+| --- | --- |
+| `:DshTui [文本]` | 打开/收起 TUI，文本会输入到输入框 |
+| `:DshTuiFocus` | 聚焦 TUI；光标已经在里面就收起 |
+| `:DshTuiFloat` / `Split` / `VSplit` / `Tab` | 用指定布局打开 |
+| `:DshTuiResume [id]` | 恢复上一次会话，或指定的会话 |
+| `:DshTuiFile [路径] [起始行] [结束行]` | 加进一个文件，或其中的几行 |
+| `:'<,'>DshTuiSelection` | 把选中的内容加进输入框 |
+| `:DshTuiTreeAdd` | 在文件树里加进光标下的文件 |
+| `:DshTuiClose` | 收起 TUI，进程继续运行 |
+| `:DshTuiInstall` | 把 dsh-TUI 安装到 `dsh-tui` profile |
+
+| 按键 | 动作 |
+| --- | --- |
 | `<leader>tt` | 打开/收起 TUI |
-| `<leader>tf` | 把当前文件加进 TUI |
-| `<leader>ts` (visual) | 把选中代码加进 TUI（在文件树里则是选中的文件） |
-| `<leader>ts`（文件树里） | 把光标下的文件加进 TUI |
-| `<leader>tF` | 聚焦 / 收起 TUI（智能切换） |
-| `<leader>tr` | 恢复上一次 TUI 会话 |
+| `<leader>tF` | 聚焦 TUI，或收起 |
+| `<leader>tr` | 恢复上一次会话 |
+| `<leader>tf` | 加进当前文件 |
+| `<leader>ts`（visual） | 加进选中的内容 |
+| `<leader>ts`（文件树里） | 加进光标下的文件 |
 
-打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。从任何窗口切回 TUI 窗口时也会进入终端模式。TUI 终端内，`<C-h>` / `<C-j>` / `<C-k>` / `<C-l>` 会切到对应方向的窗口并退出终端输入模式，和 claudecode.nvim 一样（`tui.window_nav` 可以单独关掉某个方向）。`<C-\><C-n>` 之后按 `q`（`tui.close_key`）也能收起窗口。其它按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）也直接可用。dsh-TUI 自己的 `Ctrl+J`（换行）、`Ctrl+K`（删到行尾）和 `Ctrl+L`（重绘）在窗口导航开着时会被占用，需要的话把对应方向关掉。
+### 使用 TUI 的要点
 
-装了 snacks.nvim 时，TUI 窗口默认用它的终端（`tui.provider = "auto"`），所以你给 snacks 终端配的按键也会生效；设 `tui.provider = "native"` 则始终用 Neovim 自带的终端。`tab` 布局始终用自带终端。
+- **输入** —— 打开或聚焦 TUI 后直接进入终端输入模式，可以马上打字。从其他窗口
+  切回来也一样。
+- **切换窗口** —— `<C-h>` `<C-j>` `<C-k>` `<C-l>` 切到对应方向的窗口，并退出终端
+  输入模式，和 claudecode.nvim 一样。`<C-\><C-n>` 之后按 `q` 可以收起窗口。
+- **其它按键** 都交给 TUI，包括 `q`、`<Esc>`、`Ctrl+B`、`Ctrl+R` 等。
+- **退出** —— 1 秒内连按两次 `Ctrl+C`。
+- **上下文** —— 选区和文件默认以 `@"lua/foo.lua"#L12-14` 的引用形式加入，路径相对
+  于 TUI 的工作目录。选中的内容如果来自有未保存修改的缓冲区，会改为粘贴代码，因为
+  dsh-TUI 是从磁盘读文件的。
+- **终端** —— 装了 snacks.nvim 时，TUI 使用它的终端，你为 snacks 终端配的按键也会
+  生效。设 `tui.provider = "native"` 则始终用 Neovim 自带的终端。
 
-#### 从 claudecode.nvim 迁移？
+## ⚙️ 配置
 
-TUI 的命令和按键参照 [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim) 设计，习惯可以直接带过来：
+不配置也能直接用。要改的话：
+
+```lua
+require("dsh").setup({
+  tui = { layout = "split" },
+})
+```
+
+常用选项：
+
+| 选项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `profile` | `"headless"` | 一次性任务使用的 dsh profile |
+| `cwd` | `"root"` | `"root"`（git 根目录）、`"buffer"`、`"cwd"` 或路径 |
+| `timeout_ms` | `nil` | 任务超时（毫秒），`nil` 表示不限 |
+| `tui.layout` | `"vsplit"` | `"float"`、`"split"`、`"vsplit"` 或 `"tab"` |
+| `tui.vsplit.size` | `0.3` | 竖分屏宽度，占编辑器宽度的比例 |
+| `tui.provider` | `"auto"` | 装了 snacks 就用它，否则用 `"native"` |
+| `tui.file_mode` | `"mention"` | `"mention"` 或 `"content"` |
+| `tui.selection_mode` | `"mention"` | `"mention"` 或 `"content"` |
+| `tui.auto_insert` | `true` | 聚焦 TUI 时自动进入终端输入模式 |
+| `tui.window_nav` | 四个方向都是 `true` | Ctrl+hjkl；某个方向设 `false` 即释放 |
+
+`file_mode` 和 `selection_mode` 取 `"mention"` 时以 `@` 引用文件，取 `"content"` 时
+直接粘贴内容。完整说明见 `:help dsh`。
+
+### 避免按键冲突
+
+有些默认按键可能和其它插件冲突，比如 LazyVim 用 `<leader>d` 和 `<leader>t`
+这两组。可以挪到你自己的前缀下：
+
+```lua
+require("dsh").setup({
+  keymaps = {
+    ask = "<leader>Aa",
+    ask_file = "<leader>Af",
+    ask_visual = "<leader>As",
+    tui = "<leader>At",
+    tui_file = "<leader>AF",
+    tui_visual = "<leader>AS",
+  },
+})
+```
+
+在 `keymaps` 里把某一项设为 `false` 即可禁用它。
+
+## 🔌 Lua API
+
+```lua
+local dsh = require("dsh")
+
+dsh.setup({ tui = { layout = "split" } }) -- 配置并注册按键
+dsh.run("介绍一下这个项目")               -- 运行一次性任务
+dsh.ask()                                 -- 提问；不带参数时弹出输入框
+dsh.ask_file()                            -- 审查当前文件
+dsh.ask_visual()                          -- 处理选区
+dsh.cancel()                              -- 取消正在运行的任务
+dsh.open_tui({ layout = "float", text = "hi" }) -- 打开或聚焦 TUI
+dsh.toggle_tui()                          -- 显示或隐藏 TUI
+dsh.focus_tui()                           -- 聚焦 TUI；已在里面则收起
+dsh.resume_tui("session-id")              -- 以 --resume 启动（nil = 上一次）
+dsh.close_tui()                           -- 隐藏 TUI 窗口
+dsh.tui_install()                         -- 安装 dsh-TUI
+dsh.tui_add_file("lua/foo.lua", 12, 14)   -- 一个文件，可只取其中几行
+dsh.tui_add_files({ "lua", "README.md" }) -- 多个文件或目录
+dsh.tui_add_tree()                        -- 文件树：加进光标下的文件
+dsh.tui_add_selection()                   -- 加进可视选区
+dsh.tui_paste("text")                     -- bracketed paste，不会回车
+require("dsh.tui").send("text")           -- 向 TUI 输入框输入文本
+```
+
+## 🔀 从 claudecode.nvim 迁移
+
+命令和窗口按键与 claudecode.nvim 保持一致，习惯可以直接带过来。
 
 | claudecode.nvim | dsh.nvim |
 | --- | --- |
 | `:ClaudeCode` · `<leader>ac` | `:DshTui` · `<leader>tt` |
 | `:ClaudeCodeFocus` · `<leader>af` | `:DshTuiFocus` · `<leader>tF` |
-| `:ClaudeCode --resume` · `<leader>ar`（以及 `--continue` · `<leader>aC`） | `:DshTuiResume` · `<leader>tr` —— 在 dsh-TUI 里 `--resume`、`-c`、`--continue` 都表示“重新打开上一次会话” |
-| `:ClaudeCodeAdd %` · `<leader>ab` | `:DshTuiFile` · `<leader>tf`（也可带行号，如 `:DshTuiFile % 10 20`） |
-| `:ClaudeCodeSend` · `<leader>as`（visual） | `:DshTuiSelection` · `<leader>ts`（visual） |
-| `:ClaudeCodeTreeAdd` · `<leader>as`（文件树） | `:DshTuiTreeAdd` · `<leader>ts`（文件树） |
-| `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui /model` —— 把 `/model` 输入到输入行，按回车即可；dsh-TUI 在应用内选模型，没有 `--model` 启动参数 |
-| 终端里的 `Ctrl+h/j/k/l` | 同样的按键（`tui.window_nav`） |
-| `:ClaudeCodeDiffAccept` / `DiffDeny` · `<leader>aa` / `<leader>ad` | —— claudecode.nvim 通过 IDE WebSocket 协议接收 diff；dsh 没有这套协议，所以没有可接受或拒绝的东西 |
-
-## ⚙️ 配置
-
-```lua
-require("dsh").setup({
-  dsh_cmd = nil,            -- dsh 可执行文件；nil = 自动探测（PATH → ~/.npm/_npx 最新副本）
-  profile = "headless",     -- dsh profile
-  launcher_args = {},       -- 额外的启动器参数，例如 { "--patch", "/path/x.yml" }
-  cwd = "root",             -- 运行目录："root"(git 根) | "buffer" | "cwd" | 绝对路径
-  timeout_ms = nil,         -- 任务超时（毫秒），nil = 不限
-  include_file_content = true,
-  max_inline_file_chars = 20000,
-  close_key = "q",
-  prompts = {
-    file = "请查看文件 `%s` 并给出你的分析与改进建议。",
-    file_with_content = "以下是文件 `%s` 的完整内容：\n\n```\n%s\n```\n\n请查看该文件并给出你的分析与改进建议。",
-    selection = "以下是 `%s` 中的一段代码：\n\n```\n%s\n```\n\n请查看这段代码并给出你的分析与建议。",
-  },
-  keymaps = {
-    ask = "<leader>da",
-    ask_file = "<leader>df",
-    ask_visual = "<leader>ds",
-    tui = "<leader>tt",
-    tui_file = "<leader>tf",
-    tui_visual = "<leader>ts",  -- 选中的代码；在文件树里则是选中的文件
-    tui_focus = "<leader>tF",   -- 智能聚焦 / 收起（:DshTuiFocus）
-    tui_resume = "<leader>tr",  -- 恢复上一次会话（:DshTuiResume）
-    tui_tree = "<leader>ts",    -- 文件树里：添加光标下的文件（normal 模式，仅文件树缓冲区）
-  },
-  tui = {
-    profile = "dsh-tui",        -- dsh-TUI 所在的 profile
-    launcher_args = {},         -- 额外的启动器参数，例如 { "--patch", "/path/x.yml" }
-    cwd = "root",               -- 运行目录："root" | "buffer" | "cwd" | 绝对路径
-    layout = "vsplit",          -- 默认布局："float" | "split" | "vsplit" | "tab"
-    close_key = "q",            -- 终端 normal 模式下关闭/收起窗口的按键
-    file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
-    selection_mode = "mention", -- 添加选区方式："mention"(引用 @文件#L起-止；缓冲区不可靠时自动粘贴代码) | "content"(总是粘贴代码)
-    auto_insert = true,         -- TUI 窗口获得焦点后自动进入终端模式（false = 停在 normal 模式）
-    provider = "auto",          -- 终端窗口："auto"（装了 snacks.nvim 就用它）| "snacks" | "native"（Neovim 自带）；tab 布局始终用自带终端
-    window_nav = { h = true, j = true, k = true, l = true }, -- 终端里 <C-h/j/k/l>：切到该方向的窗口并退出输入模式；false 全关，单个方向设 false 只关它
-    float = {
-      relative = "editor",
-      width = 0.94,             -- 小数按编辑器尺寸换算；也支持整数（字符列）
-      height = 0.9,
-      row = 0.03,
-      col = 0.03,
-      anchor = "NW",
-      border = "rounded",
-      title = " dsh-tui ",
-      title_pos = "center",
-      style = "minimal",
-      focusable = true,
-    },
-    split = { position = "below", size = 0.4 },   -- position: "below" | "above"
-    vsplit = { position = "right", size = 0.3 },  -- position: "right" | "left"；size：占编辑器宽度的比例
-  },
-  window = {
-    relative = "editor",
-    width = 0.72,           -- 小数按编辑器尺寸换算；也支持整数（字符列）
-    height = 0.5,
-    row = 0.25,             -- (1 - height) / 2，配合 anchor="NW" 居中
-    col = 0.14,             -- (1 - width) / 2
-    anchor = "NW",
-    border = "rounded",
-    title = " dsh ",
-    title_pos = "center",
-    style = "minimal",
-    focusable = true,
-  },
-})
-```
-
-- `keymaps` 里的某一项设为 `nil` / `false` / `""` 即禁用该映射。
-- 未调用 `setup()` 时命令仍可用（默认配置），只是不会注册按键映射。
-
-## 🔌 Lua API
-
-```lua
-require("dsh").setup(opts)     -- 配置 + 注册按键
-require("dsh").run(task)       -- 运行任务
-require("dsh").ask(prompt?)    -- 提问（无参数时弹出输入框）
-require("dsh").ask_file()      -- 审查当前文件
-require("dsh").ask_visual()    -- 处理视觉选择
-require("dsh").cancel()        -- 取消任务
-require("dsh").open_tui(opts?) -- 打开/聚焦 TUI（opts: { layout, text }）
-require("dsh").toggle_tui(opts?) -- toggle TUI
-require("dsh").close_tui()     -- 收起/关闭 TUI 窗口
-require("dsh").tui_install()   -- 安装 TUI 插件到 tui profile
-require("dsh").tui_add_file(path?) -- 把文件加进 TUI（默认 @mention 引用）
-require("dsh").tui_add_selection() -- 把视觉选区加进 TUI（文件名+行号，或代码）
-require("dsh").tui_paste(text) -- 以 bracketed paste 安全粘贴文本
-require("dsh.tui").send(text)  -- 向 TUI 输入行发送文本
-```
+| `:ClaudeCode --resume` · `<leader>ar` | `:DshTuiResume` · `<leader>tr` |
+| `:ClaudeCodeAdd %` · `<leader>ab` | `:DshTuiFile` · `<leader>tf` |
+| `:ClaudeCodeSend` · `<leader>as` | `:DshTuiSelection` · `<leader>ts` |
+| `:ClaudeCodeTreeAdd` · `<leader>as` | `:DshTuiTreeAdd` · `<leader>ts` |
+| 终端里的 `Ctrl+h/j/k/l` | 同样的按键 |
+| `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui`，然后输入 `/model` |
+| `:ClaudeCodeDiffAccept` / `Deny` | 无对应功能：dsh 没有 IDE 的 diff 协议 |
 
 ## 🧠 工作原理
 
-插件最终执行：
-
-```
-dsh --profile headless -- "<任务文本>"
-```
-
-`headless` 模式只把最后一条非空回复写到 stdout（成功退出码 `0`，失败退出码 `1`），因此浮窗在运行期显示 spinner，结束后一次性展示结果；出错时把 stderr 一并展示。
-
-TUI 集成则执行：
-
-```
-dsh --profile dsh-tui
-```
-
-并把该进程跑进 Neovim 内置 `:terminal` 缓冲区（dsh-TUI 是全屏交互式终端应用，不能像 headless 那样只收集 stdout）。窗口收起后进程继续在后台运行，再次 toggle 会复用同一个终端。
-
-把代码/文件「加进」TUI 时，走的是终端自身的输入面：
-
-- visual 选区默认以**文件名 + 行号**加进去（`tui.selection_mode = "mention"`，见下）。遇到没法引用的情况（未命名或非文件缓冲区、文件还没写到磁盘、缓冲区有未保存的修改），或设了 `tui.selection_mode = "content"` 时，选中的代码会用 **bracketed paste**（`ESC[200~ … ESC[201~`）整段粘贴进输入行，多行代码、转义字符都安全，不会逐行提交；
-- 文件默认以 `@"路径"` **@mention** 引用，提交时 dsh-TUI 将其展开为附件（文本按大小上限截取，图片作为图片块）。文件位于 TUI 工作目录之下时路径写成相对路径，否则写绝对路径；`tui.file_mode = "content"` 则改为粘贴完整内容；
-- **行区间**用 dsh-TUI 的 `#L` 后缀：`:DshTuiFile lua/foo.lua 12 14` 会添加 `@"lua/foo.lua"#L12-14`。visual 选区默认也以同样方式引用：输入框里只显示文件名和行号（像 claudecode.nvim），不再粘贴代码。dsh-TUI 是从磁盘读文件的，所以有未保存修改的缓冲区（或不是磁盘上普通文件的缓冲区）会退回成粘贴代码；设 `tui.selection_mode = "content"` 则总是粘贴；
-- 在**文件树**里（nvim-tree、neo-tree、oil.nvim、mini.files、netrw，以及 snacks 的 explorer / picker 列表），`<leader>ts` 或 `:DshTuiTreeAdd` 会把光标下的文件或目录以 `@"路径"` 引用加进去。要一次加多个：在 visual 模式选中多行（neo-tree、oil、mini.files），或先做标记（nvim-tree 书签、netrw 的 `mf`、snacks 的 `<Tab>`）。文件树里的添加始终是 @mention，不受 `file_mode` 影响。
-
-这些都只放进输入行、不自动回车，方便你继续补充说明后再提交。
-
-`:DshTuiResume [id]` 会以 `--resume [id]` 启动 TUI。这个参数只在启动新进程时才生效：TUI 已在运行（哪怕窗口收起了）时只会把它显示出来，并提示你在 TUI 里用 `/resume`。
+- **快速提问**执行 `dsh --profile headless -- "<任务>"`，把最后一条回复显示在
+  浮窗中，运行期间显示 spinner。
+- **TUI** 在 `:terminal` 缓冲区里执行 `dsh --profile dsh-tui`。收起窗口时进程继续
+  运行，再次打开会回到同一个会话。
+- **上下文**输入到 TUI 的输入框，不会替你提交。
 
 ## ❓ 常见问题
 
-**Q：第一次运行很慢？**
-`headless` profile 首次使用会自动初始化，第一次运行会多花几秒，属正常现象。
+### 第一次运行很慢
 
-**Q：提示找不到 `dsh`？**
-插件会按 `dsh_cmd` → `PATH` → `~/.npm/_npx/*/node_modules/.bin/dsh` 的顺序探测。都不行就显式指定：
+`headless` profile 首次使用时会自动初始化，属正常现象。
+
+### 找不到 `dsh`
+
+插件依次检查 `dsh_cmd`、`PATH`、`~/.npm/_npx`。也可以显式指定：
 
 ```lua
-require("dsh").setup({ dsh_cmd = "/绝对/路径/dsh" })
+require("dsh").setup({ dsh_cmd = "/path/to/dsh" })
 ```
 
-**Q：结果窗口怎么关闭？**
-按 `q`、`<Esc>` 或 `<C-c>`。
+### TUI 提示缺少 profile 或插件
 
-## 🗺️ Roadmap
+运行一次 `:DshTuiInstall`。
 
-- [x] 交互式终端 TUI 集成（dsh-TUI）
-- [ ] 流式输出（配合 dsh 未来支持增量输出）
-- [ ] 会话/多轮对话支持（headless 侧；TUI 侧已内置完整会话管理）
-- [ ] 把结果写入 split / quickfix
+### 怎样退出 TUI 里的输入模式
+
+用 `<C-h>` `<C-j>` `<C-k>` `<C-l>` 切到其它窗口，或者按 `<C-\><C-n>`。
+
+### `Ctrl+J`、`Ctrl+K`、`Ctrl+L` 没有反应
+
+这些键被窗口导航占用了。dsh-TUI 用它们做换行、删到行尾和重绘。需要哪个就释放哪个，
+例如：
+
+```lua
+require("dsh").setup({ tui = { window_nav = { j = false } } })
+```
 
 ## 🤝 贡献
 
-欢迎提 issue 和 PR。改动请保持现有代码风格，并确保 `require("dsh")` 可正常加载。
+欢迎提 issue 和 PR。请保持现有代码风格，并确认插件仍能加载：
+
+```sh
+nvim --headless -u NONE --cmd 'set rtp+=.' -c 'lua require("dsh")' -c 'qa!'
+```
 
 ## 📄 许可证
 
