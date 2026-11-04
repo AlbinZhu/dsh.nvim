@@ -168,11 +168,12 @@ local function open_split(cfg, vertical, buf)
   local win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(win, buf)
 
-  -- 尺寸：小数按当前窗口换算，整数原样使用。
+  -- 尺寸：整数原样使用。小数：竖分屏按编辑器宽度换算（和 snacks、claudecode 一致）；
+  -- 横分屏仍按新窗口的高度换算（待统一）。
   local size = s.size
   if type(size) == "number" and size > 0 and size < 1 then
     if vertical then
-      size = math.max(1, math.floor(size * vim.api.nvim_win_get_width(win)))
+      size = math.max(1, math.floor(size * vim.o.columns))
     else
       size = math.max(1, math.floor(size * vim.api.nvim_win_get_height(win)))
     end

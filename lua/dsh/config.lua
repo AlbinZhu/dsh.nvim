@@ -65,7 +65,7 @@ M.defaults = {
       focusable = true,
     },
     split = { position = "below", size = 0.4 },  -- position: "below" | "above"
-    vsplit = { position = "right", size = 0.5 }, -- position: "right" | "left"
+    vsplit = { position = "right", size = 0.3 }, -- position: "right" | "left"; size: fraction of the editor width
   },
   window = {
     relative = "editor",
