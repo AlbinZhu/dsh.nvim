@@ -231,7 +231,20 @@ local function attach_window_nav(buf, t)
   end
 end
 
---- 给 TUI 的终端缓冲区挂上按键：收起键（只在 terminal-normal 模式下生效）和 Ctrl+hjkl 窗口导航。
+--- 终端输入模式下的 Shift+Enter：直接发送 CSI 13;2u（kitty 键盘协议里 Shift+Enter 的编码）。
+--- Neovim 的 :terminal 只有在子进程请求了 kitty 协议时才会把 Shift+Enter 编码成这个序列；
+--- dsh-TUI 只在白名单终端里请求该协议，而 Neovim 不在白名单里，所以这里自己发送。
+--- dsh-TUI 的按键解析不依赖该协议是否开启，会把它识别为 shift+return，输入框里插入换行。
+local function attach_newline_keymap(buf)
+  vim.keymap.set("t", "<S-CR>", function()
+    local chan = vim.bo[buf].channel
+    if chan and chan > 0 then
+      pcall(vim.api.nvim_chan_send, chan, "\27[13;2u")
+    end
+  end, { buffer = buf, desc = "dsh-tui: Shift+Enter 换行（发送 CSI 13;2u）" })
+end
+
+--- 给 TUI 的终端缓冲区挂上按键：收起键（只在 terminal-normal 模式下生效）、Ctrl+hjkl 窗口导航和 Shift+Enter 换行。
 --- 收起键不能绑在 terminal-job 模式（"t"）：那里所有按键都要原样交给 TUI，
 --- 绑上 q / <Esc> 会让 TUI 里打不出 q，也用不了 Esc（取消、关闭对话框、双击 Esc 回退等）。
 local function attach_terminal_keys(buf, t)
@@ -240,6 +253,7 @@ local function attach_terminal_keys(buf, t)
     M.close()
   end, { buffer = buf, desc = "dsh-tui: close/hide", nowait = true })
   attach_window_nav(buf, t)
+  attach_newline_keymap(buf)
 end
 
 --- 给 TUI 终端缓冲区挂上“连按两次 Ctrl+C 退出”（terminal 模式，即直接输入给 TUI 时）。
