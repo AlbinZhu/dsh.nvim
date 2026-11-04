@@ -47,7 +47,9 @@ M.defaults = {
     close_key = "q",                                -- 终端 normal 模式下关闭/收起窗口的按键
     file_mode = "mention",                          -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
     selection_mode = "mention",                     -- 添加选区方式："mention"(引用 @文件#L起-止；缓冲区不可靠时自动粘贴代码) | "content"(总是粘贴代码)
-    auto_insert = true,                             -- 聚焦 TUI 窗口后自动进入终端模式（false = 停在 normal 模式）
+    auto_insert = true,                             -- 窗口获得焦点后自动进入终端模式（包括 Ctrl+hjkl 移动回来；false = 停在 normal 模式）
+    provider = "auto",                              -- 终端窗口："auto"(装了 snacks.nvim 就用它) | "snacks" | "native"（tab 布局始终用原生）
+    window_nav = { h = true, j = true, k = true, l = true }, -- 终端里 Ctrl+h/j/k/l 切到对应方向的窗口并退出输入模式；false 全关，某个方向设 false 只关它
     plugin_name ="@deepseek-harness-tui/dsh-tui",  -- 安装命令使用的包名
     float = {
       relative = "editor",

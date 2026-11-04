@@ -29,6 +29,47 @@ local function enter_insert()
   end
 end
 
+--- 窗口获得焦点时（包括用 Ctrl+hjkl 或 <C-w> 移动过来）按 tui.auto_insert 进入终端输入模式，
+--- 和 claudecode.nvim 的 auto_insert 一致。
+vim.api.nvim_create_autocmd("WinEnter", {
+  group = vim.api.nvim_create_augroup("DshTuiAutoInsert", { clear = true }),
+  desc = "dsh-tui: enter terminal mode when the TUI window gains focus",
+  callback = function()
+    if
+      state.chan
+      and state.buf
+      and vim.api.nvim_get_current_buf() == state.buf
+      and (config().tui or {}).auto_insert ~= false
+    then
+      vim.cmd("startinsert")
+    end
+  end,
+})
+
+--- snacks.nvim 的终端模块；没装 snacks 时返回 nil。
+local function snacks_terminal()
+  local ok, term = pcall(function()
+    return require("snacks").terminal
+  end)
+  if ok and type(term) == "table" and type(term.open) == "function" then
+    return term
+  end
+  return nil
+end
+
+--- 这次启动是否用 snacks 终端。tui.provider：
+--- "auto"（默认，装了 snacks.nvim 就用）| "snacks" | "native"。snacks 没有 tab 布局，tab 始终用原生终端。
+local function use_snacks(t, layout)
+  if t.provider == "native" or layout == "tab" then
+    return nil
+  end
+  local term = snacks_terminal()
+  if not term and t.provider == "snacks" then
+    vim.notify('dsh-tui: tui.provider = "snacks" 但找不到 snacks.nvim，改用原生终端。', vim.log.levels.WARN)
+  end
+  return term
+end
+
 --- 把 0 < v < 1 的小数按总量换算成整数；其它值原样返回。
 local function resolve_dim(value, total)
   if type(value) == "number" and value > 0 and value < 1 then
@@ -117,18 +158,11 @@ local function open_split(cfg, vertical, buf)
   local s = vertical and cfg.tui.vsplit or cfg.tui.split
   local pos = s.position
 
+  -- 原生 :split / :vsplit 默认把新窗口放在上面 / 左边，这里按 position 明确指定方向。
   if vertical then
-    if pos == "left" then
-      vim.cmd("leftabove vsplit")
-    else
-      vim.cmd("vsplit")
-    end
+    vim.cmd(pos == "left" and "leftabove vsplit" or "rightbelow vsplit")
   else
-    if pos == "above" then
-      vim.cmd("leftabove split")
-    else
-      vim.cmd("split")
-    end
+    vim.cmd(pos == "above" and "aboveleft split" or "belowright split")
   end
 
   local win = vim.api.nvim_get_current_win()
@@ -175,14 +209,36 @@ local function open_window(cfg, layout, title, existing_buf)
   return open_float(cfg, title, buf)
 end
 
---- 给终端缓冲区挂上收起按键：只在 terminal-normal 模式（先按 <C-\><C-n>）下生效。
---- 不能绑在 terminal-job 模式（"t"）：那里所有按键都要原样交给 TUI，
+--- Ctrl+h/j/k/l 的方向；tui.window_nav 里设为 false 的方向不绑定。
+local NAV_DIRS = { "h", "j", "k", "l" }
+
+--- 终端输入模式下 Ctrl+方向键：先退出终端输入模式（<C-\><C-n>），再把焦点移到该方向的窗口。
+--- 与 claudecode.nvim（snacks 终端 + LazyVim 的 Ctrl+hjkl 配置）效果一致：离开 TUI 后回到普通模式。
+--- 这些键在 TUI 里会被挡住：dsh-TUI 自己用到的 Ctrl+J（输入框换行）、Ctrl+K（删到行尾）、Ctrl+L（重绘）。
+local function attach_window_nav(buf, t)
+  local nav = t.window_nav
+  if nav == false then
+    return
+  end
+  for _, dir in ipairs(NAV_DIRS) do
+    if not (type(nav) == "table" and nav[dir] == false) then
+      vim.keymap.set("t", "<C-" .. dir .. ">", [[<C-\><C-n><C-w>]] .. dir, {
+        buffer = buf,
+        desc = "dsh-tui: move to the " .. dir .. " window (leave terminal mode)",
+      })
+    end
+  end
+end
+
+--- 给 TUI 的终端缓冲区挂上按键：收起键（只在 terminal-normal 模式下生效）和 Ctrl+hjkl 窗口导航。
+--- 收起键不能绑在 terminal-job 模式（"t"）：那里所有按键都要原样交给 TUI，
 --- 绑上 q / <Esc> 会让 TUI 里打不出 q，也用不了 Esc（取消、关闭对话框、双击 Esc 回退等）。
-local function attach_close_keymap(buf, t)
+local function attach_terminal_keys(buf, t)
   local close_key = t.close_key or "q"
   vim.keymap.set("n", close_key, function()
     M.close()
   end, { buffer = buf, desc = "dsh-tui: close/hide", nowait = true })
+  attach_window_nav(buf, t)
 end
 
 --- 给 TUI 终端缓冲区挂上“连按两次 Ctrl+C 退出”（terminal 模式，即直接输入给 TUI 时）。
@@ -212,6 +268,69 @@ local function teardown(buf, win)
   end
 end
 
+--- 用 snacks.nvim 的终端启动：窗口和进程由 snacks 创建，所以 snacks 配置里的按键（例如 LazyVim 的
+--- Ctrl+hjkl）和终端行为都会作用到 TUI 上。之后的收起、恢复仍由本模块管理窗口：snacks 的 open 每次都会
+--- 新开进程，所以只用它来启动。返回 nil 表示 snacks 没能创建终端。
+---@param term_mod table snacks.terminal
+---@param opts table { cfg, layout, title, filetype, on_exit }
+local function launch_snacks(term_mod, cmd, opts)
+  local cfg = opts.cfg
+  local t = cfg.tui or {}
+  local layout = opts.layout
+  local win = {
+    -- snacks 默认的“双击 Esc 进入普通模式”会抢走 TUI 的双击 Esc（回退等），这里关掉。
+    keys = { term_normal = false },
+  }
+  if layout == "float" then
+    local f = t.float or {}
+    win.position = "float"
+    win.width = f.width
+    win.height = f.height
+    win.border = f.border
+    win.title = opts.title
+    win.title_pos = f.title_pos
+  elseif layout == "split" then
+    local s = t.split or {}
+    win.position = s.position == "above" and "top" or "bottom"
+    win.height = s.size
+  else
+    local s = t.vsplit or {}
+    win.position = s.position == "left" and "left" or "right"
+    win.width = s.size
+  end
+
+  local auto = t.auto_insert ~= false
+  local term = term_mod.open(cmd, {
+    cwd = resolve_cwd(cfg),
+    interactive = true,
+    auto_insert = auto,
+    start_insert = auto,
+    -- 退出由下面的 TermClose 处理（非 0 退出码保留窗口并报错），snacks 自己不关窗口。
+    auto_close = false,
+    win = win,
+  })
+  if not term or not term.buf then
+    return nil
+  end
+
+  local buf = term.buf
+  local chan = vim.bo[buf].channel
+  vim.bo[buf].bufhidden = "hide"
+  vim.bo[buf].filetype = opts.filetype or "dsh-tui"
+  attach_terminal_keys(buf, t)
+  if opts.on_exit then
+    vim.api.nvim_create_autocmd("TermClose", {
+      buffer = buf,
+      once = true,
+      callback = function()
+        local code = type(vim.v.event) == "table" and vim.v.event.status or -1
+        opts.on_exit(chan, code)
+      end,
+    })
+  end
+  return { buf = buf, win = term.win, chan = chan, layout = layout, cwd = resolve_cwd(cfg) }
+end
+
 --- 在指定布局里启动一个命令终端。返回 { buf, win, chan, layout, cwd }（cwd 是进程的工作目录）。
 ---@param cmd string|string[] 命令（shell 字符串或 List）
 ---@param opts table { layout?, title?, filetype?, on_exit?, existing_buf? }
@@ -221,6 +340,23 @@ local function launch(cmd, opts)
   local t = cfg.tui or {}
 
   local layout = opts.layout or t.layout or "vsplit"
+
+  -- 全新启动且 provider 允许时用 snacks 终端；复用已有缓冲区时窗口由本模块重建（见 M.open）。
+  local snacks = not opts.existing_buf and use_snacks(t, layout)
+  if snacks then
+    local r = launch_snacks(snacks, cmd, {
+      cfg = cfg,
+      layout = layout,
+      title = opts.title,
+      filetype = opts.filetype,
+      on_exit = opts.on_exit,
+    })
+    if r then
+      return r
+    end
+    vim.notify("dsh-tui: snacks 终端启动失败，改用原生终端。", vim.log.levels.WARN)
+  end
+
   local buf, win = open_window(cfg, layout, opts.title, opts.existing_buf)
 
   vim.api.nvim_set_current_buf(buf)
@@ -231,11 +367,11 @@ local function launch(cmd, opts)
     vim.bo[buf].filetype = opts.filetype or "dsh-tui"
     local top = term_opts(cfg, { on_exit = opts.on_exit })
     local chan = vim.fn.termopen(cmd, top)
-    attach_close_keymap(buf, t)
+    attach_terminal_keys(buf, t)
     return { buf = buf, win = win, chan = chan, layout = layout, cwd = top.cwd }
   end
 
-  attach_close_keymap(buf, t)
+  attach_terminal_keys(buf, t)
   return { buf = buf, win = win, chan = state.chan, layout = layout, cwd = state.cwd }
 end
 
@@ -270,7 +406,7 @@ function M.open(opts)
   if state.buf and vim.api.nvim_buf_is_valid(state.buf) and state.chan then
     local buf, win = open_window(cfg, layout, t.float.title, state.buf)
     vim.api.nvim_set_current_buf(buf)
-    attach_close_keymap(buf, t)
+    attach_terminal_keys(buf, t)
     state.buf, state.win, state.layout = buf, win, layout
     enter_insert()
     if opts.text and opts.text ~= "" then

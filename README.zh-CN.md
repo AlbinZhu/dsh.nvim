@@ -132,7 +132,9 @@ Plug 'AlbinZhu/dsh.nvim'
 | `<leader>tF` | 聚焦 / 收起 TUI（智能切换） |
 | `<leader>tr` | 恢复上一次 TUI 会话 |
 
-打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。TUI 终端内：`<C-\><C-n>` 进入终端 normal 模式后按 `q`（`tui.close_key`）收起窗口。终端 job 模式下所有按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）也直接可用。
+打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（设 `tui.auto_insert = false` 则停在 normal 模式）。从任何窗口切回 TUI 窗口时也会进入终端模式。TUI 终端内，`<C-h>` / `<C-j>` / `<C-k>` / `<C-l>` 会切到对应方向的窗口并退出终端输入模式，和 claudecode.nvim 一样（`tui.window_nav` 可以单独关掉某个方向）。`<C-\><C-n>` 之后按 `q`（`tui.close_key`）也能收起窗口。其它按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，TUI 自身快捷键（如 `Ctrl+B` 侧边栏、`Ctrl+R` 历史）也直接可用。dsh-TUI 自己的 `Ctrl+J`（换行）、`Ctrl+K`（删到行尾）和 `Ctrl+L`（重绘）在窗口导航开着时会被占用，需要的话把对应方向关掉。
+
+装了 snacks.nvim 时，TUI 窗口默认用它的终端（`tui.provider = "auto"`），所以你给 snacks 终端配的按键也会生效；设 `tui.provider = "native"` 则始终用 Neovim 自带的终端。`tab` 布局始终用自带终端。
 
 #### 从 claudecode.nvim 迁移？
 
@@ -147,6 +149,7 @@ TUI 的命令和按键参照 [coder/claudecode.nvim](https://github.com/coder/cl
 | `:ClaudeCodeSend` · `<leader>as`（visual） | `:DshTuiSelection` · `<leader>ts`（visual） |
 | `:ClaudeCodeTreeAdd` · `<leader>as`（文件树） | `:DshTuiTreeAdd` · `<leader>ts`（文件树） |
 | `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui /model` —— 把 `/model` 输入到输入行，按回车即可；dsh-TUI 在应用内选模型，没有 `--model` 启动参数 |
+| 终端里的 `Ctrl+h/j/k/l` | 同样的按键（`tui.window_nav`） |
 | `:ClaudeCodeDiffAccept` / `DiffDeny` · `<leader>aa` / `<leader>ad` | —— claudecode.nvim 通过 IDE WebSocket 协议接收 diff；dsh 没有这套协议，所以没有可接受或拒绝的东西 |
 
 ## ⚙️ 配置
@@ -186,6 +189,8 @@ require("dsh").setup({
     file_mode = "mention",      -- 添加文件方式："mention"(引用) | "content"(粘贴全文)
     selection_mode = "mention", -- 添加选区方式："mention"(引用 @文件#L起-止；缓冲区不可靠时自动粘贴代码) | "content"(总是粘贴代码)
     auto_insert = true,         -- TUI 窗口获得焦点后自动进入终端模式（false = 停在 normal 模式）
+    provider = "auto",          -- 终端窗口："auto"（装了 snacks.nvim 就用它）| "snacks" | "native"（Neovim 自带）；tab 布局始终用自带终端
+    window_nav = { h = true, j = true, k = true, l = true }, -- 终端里 <C-h/j/k/l>：切到该方向的窗口并退出输入模式；false 全关，单个方向设 false 只关它
     float = {
       relative = "editor",
       width = 0.94,             -- 小数按编辑器尺寸换算；也支持整数（字符列）

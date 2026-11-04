@@ -132,7 +132,9 @@ _Default keymaps (registered in `setup()`, can be disabled):_
 | `<leader>tF` | Focus / hide TUI (smart toggle) |
 | `<leader>tr` | Resume the last TUI session |
 
-Opening or focusing the TUI puts you straight into terminal mode, so you can type right away (set `tui.auto_insert = false` to stay in normal mode). Inside the TUI terminal: press `<C-\><C-n>` to enter terminal normal mode, then `q` (`tui.close_key`) to hide the window. In terminal job mode every key — including `q` and `<Esc>` — goes straight to the TUI, as do the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history).
+Opening or focusing the TUI puts you straight into terminal mode, so you can type right away (set `tui.auto_insert = false` to stay in normal mode). Focusing the TUI window again, from any window, enters terminal mode too. Inside the TUI terminal, `<C-h>` / `<C-j>` / `<C-k>` / `<C-l>` move to the window in that direction and leave terminal mode, the same as claudecode.nvim (`tui.window_nav` turns single directions off). `<C-\><C-n>` followed by `q` (`tui.close_key`) also hides the window. Every other key, including `q` and `<Esc>`, goes straight to the TUI, as do the TUI's own shortcuts (e.g. `Ctrl+B` side panel, `Ctrl+R` history). dsh-TUI's own `Ctrl+J` (newline), `Ctrl+K` (delete to end of line) and `Ctrl+L` (redraw) are taken by the window keys while they are on, so turn off the ones you need.
+
+The TUI window uses snacks.nvim's terminal when that plugin is installed (`tui.provider = "auto"`), so your snacks terminal keys apply to it; set `tui.provider = "native"` to always use Neovim's built-in terminal. The `tab` layout always uses the built-in terminal.
 
 #### Coming from claudecode.nvim?
 
@@ -147,6 +149,7 @@ The TUI commands and keymaps are modeled on [coder/claudecode.nvim](https://gith
 | `:ClaudeCodeSend` · `<leader>as` (visual) | `:DshTuiSelection` · `<leader>ts` (visual) |
 | `:ClaudeCodeTreeAdd` · `<leader>as` (file explorer) | `:DshTuiTreeAdd` · `<leader>ts` (file explorer) |
 | `:ClaudeCodeSelectModel` · `<leader>am` | `:DshTui /model` — types `/model` into the input, press Enter; dsh-TUI picks models in-app and has no `--model` flag |
+| `Ctrl+h/j/k/l` in the terminal | same keys (`tui.window_nav`) |
 | `:ClaudeCodeDiffAccept` / `DiffDeny` · `<leader>aa` / `<leader>ad` | — claudecode.nvim receives diffs over the IDE WebSocket protocol; dsh has no such protocol, so there is nothing to accept or deny |
 
 ## ⚙️ Configuration
@@ -186,6 +189,8 @@ require("dsh").setup({
     file_mode = "mention",      -- how to add files: "mention" (reference) | "content" (paste full content)
     selection_mode = "mention", -- how to add a selection: "mention" (reference @file#L<start>-<end>; pastes the code when the buffer can't be referenced) | "content" (always paste the code)
     auto_insert = true,         -- enter terminal mode when the TUI window gets focus (false = stay in normal mode)
+    provider = "auto",          -- "auto" (snacks.nvim's terminal when installed) | "snacks" | "native" (Neovim's built-in terminal); the tab layout is always native
+    window_nav = { h = true, j = true, k = true, l = true }, -- terminal <C-h/j/k/l>: move to that window and leave terminal mode; false = none, or set one direction to false
     float = {
       relative = "editor",
       width = 0.94,             -- fractions are relative to the editor size; integers (character columns) are also accepted

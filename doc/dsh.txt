@@ -110,7 +110,9 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 	    close_key = "q",       -- 终端 normal 模式下关闭/收起窗口
 	    file_mode = "mention", -- "mention"(引用) | "content"(粘贴全文)
 	    selection_mode = "mention", -- "mention"(引用 @文件#L起-止；缓冲区不可靠时粘贴代码) | "content"(总是粘贴)
-	    auto_insert = true,    -- 聚焦 TUI 窗口后自动进入终端模式
+	    auto_insert = true,    -- 窗口获得焦点后自动进入终端模式（包括 Ctrl+hjkl 移动回来）
+	    provider = "auto",     -- "auto"(装了 snacks.nvim 就用它) | "snacks" | "native"；tab 布局始终用原生
+	    window_nav = { h = true, j = true, k = true, l = true }, -- 终端里 <C-h/j/k/l>；false 全关，单个方向设 false 只关它
 	    float = {
 	      relative = "editor", width = 0.94, height = 0.9,
 	      row = 0.03, col = 0.03, anchor = "NW",
@@ -126,9 +128,12 @@ dsh.nvim 是一个轻量插件，把 DeepSeek Harness (`dsh`) 接进 Neovim：
 未调用 setup() 时，命令也能工作（使用默认配置），只是不注册按键映射。
 
 打开或聚焦 TUI 后会直接进入终端模式，可以马上输入（`tui.auto_insert = false` 可关闭）。
-TUI 终端内的按键：`<C-\><C-n>` 进入终端 normal 模式，然后按 `q`（`tui.close_key`）
-关闭/收起窗口。终端 job 模式下所有按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，
-TUI 自身的快捷键（如 `Ctrl+B` 侧边栏）也直接可用。
+从任何窗口切回 TUI 窗口时也会进入终端模式。
+TUI 终端内，`<C-h>` / `<C-j>` / `<C-k>` / `<C-l>` 切到对应方向的窗口并退出终端输入模式，
+和 claudecode.nvim 一样（`tui.window_nav` 可以单独关掉某个方向）。`<C-\><C-n>` 之后按
+`q`（`tui.close_key`）也能收起窗口。其它按键（包括 `q` 和 `<Esc>`）都原样交给 TUI，
+TUI 自身的快捷键（如 `Ctrl+B` 侧边栏）也直接可用。dsh-TUI 自己的 `Ctrl+J`（换行）、
+`Ctrl+K`（删到行尾）和 `Ctrl+L`（重绘）在窗口导航开着时会被占用，需要的话把对应方向关掉。
 
 ==============================================================================
 4. Lua API						*dsh-api*
@@ -161,6 +166,9 @@ TUI 自身的快捷键（如 `Ctrl+B` 侧边栏）也直接可用。
 
 :dsh-TUI 备注~
 
+- TUI 窗口默认用 snacks.nvim 的终端（装了 snacks.nvim 时，`tui.provider = "auto"`），
+  所以你给 snacks 终端配的按键也会生效；没装或设 `tui.provider = "native"` 时用 Neovim
+  自带的终端。
 - TUI 是全屏交互式终端应用，须先安装：
   `npx -y @deepseek-ai/dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`
   或用 `:DshTuiInstall`（首次安装要用 pnpm 拉依赖，会慢一些）。
