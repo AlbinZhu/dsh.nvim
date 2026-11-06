@@ -8,31 +8,6 @@ local function mod()
   return require("dsh")
 end
 
-vim.api.nvim_create_user_command("Dsh", function(cmd)
-  local prompt = table.concat(cmd.fargs, " ")
-  if prompt == "" then
-    mod().ask()
-  else
-    mod().run(prompt)
-  end
-end, {
-  nargs = "*",
-  complete = "file",
-  desc = "Ask dsh (headless) a question. With no args, opens an input prompt.",
-})
-
-vim.api.nvim_create_user_command("DshFile", function()
-  mod().ask_file()
-end, { desc = "Ask dsh to review the current file" })
-
-vim.api.nvim_create_user_command("DshSelection", function()
-  mod().ask_visual()
-end, { range = true, desc = "Ask dsh about the visual selection" })
-
-vim.api.nvim_create_user_command("DshCancel", function()
-  mod().cancel()
-end, { desc = "Cancel the running dsh job" })
-
 -- ---- dsh-TUI 终端集成 ----
 
 vim.api.nvim_create_user_command("DshTui", function(cmd)
@@ -110,7 +85,3 @@ end, {
 vim.api.nvim_create_user_command("DshTuiSelection", function()
   mod().tui_add_selection()
 end, { range = true, desc = "Add the visual selection to the dsh-TUI input" })
-
-vim.api.nvim_create_user_command("DshTuiInstall", function()
-  mod().tui_install()
-end, { desc = "Install the dsh-TUI plugin into the dsh-tui profile" })

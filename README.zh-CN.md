@@ -16,35 +16,43 @@
 </p>
 <!-- markdownlint-enable MD033 -->
 
-用浮窗快速提问，也可以在分屏里打开完整的交互式 `dsh` 会话。
-当前文件和选中的代码，只需一个按键就能带进对话。
+像使用 claudecode.nvim 一样使用 DeepSeek Harness：完整的交互式 `dsh` 会话在分屏里打开，
+就在你的代码旁边。当前文件和选中的代码，只需一个按键就能带进对话。
 
 ## ✨ 为什么用 dsh.nvim
 
-- 🪟 **结果在浮窗里** — 提问、审查当前文件、解释选中的代码，回复直接显示在
-  浮窗中。
 - 🖥️ **完整的 TUI 就在 Neovim 里** — 交互式的
   [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 跑在分屏中，支持会话和
   `/resume`。
 - 📎 **一个按键带上上下文** — 文件、选区或行区间都能以 `@` 引用的形式加进输入框，
   输入框保持简短。
-- ⌨️ **操作习惯一致** — 命令和 `Ctrl+h/j/k/l` 窗口切换与 claudecode.nvim 相同。
+- ⌨️ **和 claudecode.nvim 一样用** — 命令、窗口按键和添加上下文的方式都相同。用过其中一个，
+  就已经会用另一个了。
 - ⚡ **开箱即用** — 自动找到 `PATH` 或 `~/.npm/_npx` 下的 `dsh`。
-- 🧩 **可配置** — 提示词、按键、布局、窗口样式，还有 Lua API。
+- 🧩 **可配置** — 按键、布局、窗口样式，还有 Lua API。
 
 ## 🚀 快速上手
 
-先安装 `dsh` 命令行，再添加插件（见下文「安装」）：
+先安装 `dsh` 命令行和 dsh-TUI 插件（详见下文「安装 dsh-TUI」）：
 
 ```sh
 npm install -g @deepseek-ai/dsh
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
 ```
 
-然后在 Neovim 里试试：
+然后在 Neovim 里按 `<leader>tt`，代理会在代码旁边打开，直接输入即可。
 
-- `:Dsh 介绍一下这个项目` —— 提问
-- `:DshFile` —— 审查当前文件
-- `<leader>tt` —— 打开 TUI（第一次先运行一次 `:DshTuiInstall`）
+## 🔄 像 claudecode.nvim 一样使用
+
+DeepSeek Harness 是一个终端里的编码代理。dsh.nvim 让它的使用流程和 claudecode.nvim 一样：
+
+- `<leader>tt`（或 `:DshTui`）在代码旁边打开代理，对应 `:ClaudeCode`。
+- 像在 Claude Code 里一样，直接在 TUI 里输入需求。添加上下文不会提交任何内容，准备好了再按回车。
+- `<leader>tf` 把当前文件以 `@` 引用的形式加进输入框。visual 模式下 `<leader>ts` 加入选中的内容；
+  在文件树里则加入光标下的文件。
+- `<leader>tF` 聚焦或收起代理，`<leader>tr` 恢复上一次会话，`Ctrl+h/j/k/l` 在窗口之间移动。
+
+完整的对应关系见下文「从 claudecode.nvim 迁移」。
 
 ## 📦 安装
 
@@ -54,7 +62,37 @@ npm install -g @deepseek-ai/dsh
 - `dsh` 命令行：`npm install -g @deepseek-ai/dsh`，或者让插件自动找到
   `~/.npm/_npx` 下的副本
 - 使用 TUI 还需要 Node.js `^22.19` 或 `>=24`、`pnpm`，以及 dsh-TUI 插件
-  （运行 `:DshTuiInstall`）
+  （见下文「安装 dsh-TUI」）
+
+### 安装 dsh-TUI
+
+dsh-TUI 是 DeepSeek Harness 的交互式终端应用。dsh.nvim 在 Neovim 里运行它，
+所以需要先在终端里安装一次：
+
+```sh
+# 1. dsh 命令行（已经安装过可以跳过）
+npm install -g @deepseek-ai/dsh
+
+# 2. dsh-TUI 插件，装进它自己的 `dsh-tui` profile
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+
+# 3. 检查 TUI 能否启动
+dsh --profile dsh-tui
+```
+
+- 没有全局安装时，把 `dsh` 换成 `npx -y @deepseek-ai/dsh`。
+- 第一次安装要用 `pnpm` 拉取依赖，会慢一些。
+- `dsh plugin --profile dsh-tui <参数>` 会在该 profile 里运行 `pnpm <参数>`。
+- dsh.nvim 依次在 `PATH` 和 `~/.npm/_npx` 下查找 `dsh`；装在别处的话，
+  用 `dsh_cmd` 指定路径。
+
+更新插件，运行：
+
+```sh
+dsh plugin --profile dsh-tui update --latest @deepseek-harness-tui/dsh-tui
+```
+
+如果 TUI 提示插件和 dsh 版本不匹配，就更新插件（或 dsh 命令行），让两者保持一致。
 
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
@@ -87,23 +125,6 @@ Plug 'AlbinZhu/dsh.nvim'
 " lua require("dsh").setup()
 ```
 
-## 💬 提问
-
-回复显示在浮窗里，按 `q`、`<Esc>` 或 `<C-c>` 关闭。
-
-| 命令 | 作用 |
-| --- | --- |
-| `:Dsh <问题>` | 提问（不带参数会弹出输入框） |
-| `:DshFile` | 审查当前文件 |
-| `:'<,'>DshSelection` | 处理选中的代码 |
-| `:DshCancel` | 取消正在运行的任务 |
-
-| 按键 | 动作 |
-| --- | --- |
-| `<leader>da` | 提问 |
-| `<leader>df` | 审查当前文件 |
-| `<leader>ds`（visual） | 处理选中的代码 |
-
 ## 🖥️ 使用 TUI
 
 交互式 dsh-TUI 跑在 Neovim 终端里，默认是竖分屏，也可以用横分屏、浮窗或标签页。
@@ -118,7 +139,6 @@ Plug 'AlbinZhu/dsh.nvim'
 | `:'<,'>DshTuiSelection` | 把选中的内容加进输入框 |
 | `:DshTuiTreeAdd` | 在文件树里加进光标下的文件 |
 | `:DshTuiClose` | 收起 TUI，进程继续运行 |
-| `:DshTuiInstall` | 把 dsh-TUI 安装到 `dsh-tui` profile |
 
 | 按键 | 动作 |
 | --- | --- |
@@ -157,9 +177,7 @@ require("dsh").setup({
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `profile` | `"headless"` | 一次性任务使用的 dsh profile |
-| `cwd` | `"root"` | `"root"`（git 根目录）、`"buffer"`、`"cwd"` 或路径 |
-| `timeout_ms` | `nil` | 任务超时（毫秒），`nil` 表示不限 |
+| `tui.cwd` | `"root"` | `"root"`（git 根目录）、`"buffer"`、`"cwd"` 或路径 |
 | `tui.layout` | `"vsplit"` | `"float"`、`"split"`、`"vsplit"` 或 `"tab"` |
 | `tui.vsplit.size` | `0.3` | 竖分屏宽度，占编辑器宽度的比例 |
 | `tui.provider` | `"auto"` | 装了 snacks 就用它，否则用 `"native"` |
@@ -173,15 +191,11 @@ require("dsh").setup({
 
 ### 避免按键冲突
 
-有些默认按键可能和其它插件冲突，比如 LazyVim 用 `<leader>d` 和 `<leader>t`
-这两组。可以挪到你自己的前缀下：
+有些默认按键可能和其它插件冲突，比如 LazyVim 用 `<leader>t` 这一组。可以挪到你自己的前缀下：
 
 ```lua
 require("dsh").setup({
   keymaps = {
-    ask = "<leader>Aa",
-    ask_file = "<leader>Af",
-    ask_visual = "<leader>As",
     tui = "<leader>At",
     tui_file = "<leader>AF",
     tui_visual = "<leader>AS",
@@ -197,17 +211,11 @@ require("dsh").setup({
 local dsh = require("dsh")
 
 dsh.setup({ tui = { layout = "split" } }) -- 配置并注册按键
-dsh.run("介绍一下这个项目")               -- 运行一次性任务
-dsh.ask()                                 -- 提问；不带参数时弹出输入框
-dsh.ask_file()                            -- 审查当前文件
-dsh.ask_visual()                          -- 处理选区
-dsh.cancel()                              -- 取消正在运行的任务
 dsh.open_tui({ layout = "float", text = "hi" }) -- 打开或聚焦 TUI
 dsh.toggle_tui()                          -- 显示或隐藏 TUI
 dsh.focus_tui()                           -- 聚焦 TUI；已在里面则收起
 dsh.resume_tui("session-id")              -- 以 --resume 启动（nil = 上一次）
 dsh.close_tui()                           -- 隐藏 TUI 窗口
-dsh.tui_install()                         -- 安装 dsh-TUI
 dsh.tui_add_file("lua/foo.lua", 12, 14)   -- 一个文件，可只取其中几行
 dsh.tui_add_files({ "lua", "README.md" }) -- 多个文件或目录
 dsh.tui_add_tree()                        -- 文件树：加进光标下的文件
@@ -234,17 +242,11 @@ require("dsh.tui").send("text")           -- 向 TUI 输入框输入文本
 
 ## 🧠 工作原理
 
-- **快速提问**执行 `dsh --profile headless -- "<任务>"`，把最后一条回复显示在
-  浮窗中，运行期间显示 spinner。
 - **TUI** 在 `:terminal` 缓冲区里执行 `dsh --profile dsh-tui`。收起窗口时进程继续
   运行，再次打开会回到同一个会话。
 - **上下文**输入到 TUI 的输入框，不会替你提交。
 
 ## ❓ 常见问题
-
-### 第一次运行很慢
-
-`headless` profile 首次使用时会自动初始化，属正常现象。
 
 ### 找不到 `dsh`
 
@@ -256,7 +258,11 @@ require("dsh").setup({ dsh_cmd = "/path/to/dsh" })
 
 ### TUI 提示缺少 profile 或插件
 
-运行一次 `:DshTuiInstall`。
+运行一次安装命令：
+
+```sh
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+```
 
 ### 怎样退出 TUI 里的输入模式
 

@@ -1,10 +1,11 @@
---- dsh.nvim — 在 Neovim 中调用 `dsh --profile headless` 完成一次性任务。
+--- dsh.nvim — 在 Neovim 中集成 dsh-TUI（`dsh --profile dsh-tui`）。
 ---@brief [[
 --- 用法：
----   :Dsh  <问题>            直接提问（无参数时弹出输入框）
----   :DshFile                让 dsh 审查当前文件
----   :'<,'>DshSelection      让 dsh 处理选中的文本
----   :DshCancel              取消正在运行的任务
+---   :DshTui [文本]          打开/收起 TUI（文本会输入到输入框）
+---   :DshTuiFocus            聚焦或收起 TUI
+---   :DshTuiResume [id]      恢复会话
+---   :DshTuiFile [路径]      把文件加进 TUI 输入框
+---   :'<,'>DshTuiSelection   把选中的内容加进 TUI 输入框
 ---@brief ]]
 
 local M = {}
@@ -74,9 +75,6 @@ local function apply_keymaps(cfg)
   clear_keymaps()
   local km = cfg.keymaps or {}
   local defs = {
-    { "n", km.ask, function() M.ask() end, "dsh: ask" },
-    { "n", km.ask_file, function() M.ask_file() end, "dsh: ask about current file" },
-    { "x", km.ask_visual, function() M.ask_visual() end, "dsh: ask about selection" },
     { "n", km.tui, function() M.toggle_tui() end, "dsh: toggle dsh-TUI" },
     { "n", km.tui_file, function() M.tui_add_file() end, "dsh: add file to dsh-TUI" },
     { "x", km.tui_visual, function() M.tui_add_selection() end, "dsh: add selection to dsh-TUI" },
@@ -109,93 +107,6 @@ function M.setup(opts)
   return cfg
 end
 
---- 运行一个任务（核心入口）。
----@param task string 发送给 dsh 的任务文本
-function M.run(task)
-  local cfg = config()
-  if type(task) ~= "string" or task == "" then
-    vim.notify("dsh: 任务文本为空", vim.log.levels.WARN)
-    return nil
-  end
-
-  local ui = require("dsh.ui")
-  local runner = require("dsh.runner")
-
-  ui.open(cfg)
-
-  runner.run(cfg, task, {
-    on_exit = function(code, signal, stdout, stderr)
-      if code == 0 then
-        ui.set_result(stdout ~= "" and stdout or "(no output)")
-      else
-        ui.set_error(code, signal, stderr)
-      end
-    end,
-    on_error = function(msg)
-      ui.set_error(nil, nil, nil, msg)
-    end,
-  })
-  return true
-end
-
---- 提问；无参数时弹出输入框。
-function M.ask(prompt)
-  prompt = prompt or ""
-  if prompt ~= "" then
-    M.run(prompt)
-    return
-  end
-  vim.ui.input({ prompt = "dsh> " }, function(input)
-    if input and input ~= "" then
-      M.run(input)
-    end
-  end)
-end
-
---- 让 dsh 审查当前文件。
-function M.ask_file()
-  local cfg = config()
-  local ctx = require("dsh.context")
-  local path = ctx.current_file()
-  if not path then
-    vim.notify("dsh: 当前缓冲区没有关联文件", vim.log.levels.WARN)
-    return
-  end
-
-  local task
-  if cfg.include_file_content then
-    local content = ctx.file_content(path)
-    if content and content:find("\0", 1, true) == nil and #content <= cfg.max_inline_file_chars then
-      task = string.format(cfg.prompts.file_with_content, path, content)
-    else
-      task = string.format(cfg.prompts.file, path)
-    end
-  else
-    task = string.format(cfg.prompts.file, path)
-  end
-  M.run(task)
-end
-
---- 让 dsh 处理当前视觉选择。
-function M.ask_visual()
-  local cfg = config()
-  local ctx = require("dsh.context")
-  local sel = ctx.visual_selection()
-  if not sel or sel == "" then
-    vim.notify("dsh: 没有可用的视觉选择（请先进入 visual 模式选中文本）", vim.log.levels.WARN)
-    return
-  end
-  local path = ctx.current_file() or "current buffer"
-  M.run(string.format(cfg.prompts.selection, path, sel))
-end
-
---- 取消正在运行的任务。
-function M.cancel()
-  local cancelled = require("dsh.runner").cancel()
-  require("dsh.ui").close()
-  return cancelled
-end
-
 --- dsh-TUI 终端集成模块（详见 require("dsh.tui")）。
 M.tui = require("dsh.tui")
 
@@ -212,11 +123,6 @@ end
 --- toggle TUI。
 function M.toggle_tui(opts)
   return M.tui.toggle(opts)
-end
-
---- 安装 dsh-TUI 插件到 dsh-tui profile。
-function M.tui_install()
-  return M.tui.install()
 end
 
 --- 向 TUI 添加一个文件（默认 @mention 引用，见 tui.file_mode）；

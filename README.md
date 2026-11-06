@@ -16,36 +16,49 @@ coding agent without leaving Neovim.
 </p>
 <!-- markdownlint-enable MD033 -->
 
-Ask a quick question in a floating window, or open the full interactive `dsh`
-session in a split. Your file and your selection are one keypress away.
+Use DeepSeek Harness the way you already use claudecode.nvim. The full
+interactive `dsh` session opens in a split next to your code, and your file or
+selection is one keypress away.
 
 ## ✨ Why dsh.nvim
 
-- 🪟 **Answers in a float** — ask, review the current file or explain a
-  selection. The reply appears in a floating window.
 - 🖥️ **The full TUI, inside Neovim** — the interactive
   [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) runs in a split, with
   sessions and `/resume`.
 - 📎 **Context in one keypress** — send a file, a selection or a line range as
   an `@mention`. Your input stays short.
-- ⌨️ **Familiar workflow** — the commands and `Ctrl+h/j/k/l` window keys follow
-  claudecode.nvim, so the habits carry over.
+- ⌨️ **Works like claudecode.nvim** — the same commands, the same window keys and
+  the same way of adding context. If you know one, you already know the other.
 - ⚡ **Zero setup** — finds `dsh` on your `PATH` or under `~/.npm/_npx`.
-- 🧩 **Configurable** — prompts, keymaps, layouts, window style and a Lua API.
+- 🧩 **Configurable** — keymaps, layouts, window style and a Lua API.
 
 ## 🚀 Quick start
 
-Install the `dsh` CLI, then add the plugin (see [Installation](#-installation)):
+Install the `dsh` CLI and the dsh-TUI plugin (details in
+[Install dsh-TUI](#install-dsh-tui)):
 
 ```sh
 npm install -g @deepseek-ai/dsh
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
 ```
 
-Then, in Neovim:
+Then, in Neovim, press `<leader>tt`. The agent opens next to your code,
+ready to type.
 
-- `:Dsh explain this project to me` — ask a question
-- `:DshFile` — review the current file
-- `<leader>tt` — open the TUI (run `:DshTuiInstall` once first)
+## 🔄 Use it like claudecode.nvim
+
+DeepSeek Harness is a terminal coding agent. dsh.nvim gives it the same workflow
+you know from claudecode.nvim:
+
+- `<leader>tt` (or `:DshTui`) opens the agent next to your code, like `:ClaudeCode`.
+- Type your request in the TUI, as you would in Claude Code. Adding context never
+  submits anything; you press Enter when you are ready.
+- `<leader>tf` adds the current file as an `@` mention. In visual mode, `<leader>ts`
+  adds the selection, and in a file explorer it adds the file under the cursor.
+- `<leader>tF` focuses the agent or hides it, `<leader>tr` resumes the last session,
+  and `Ctrl+h/j/k/l` moves between windows.
+
+For the full mapping, see [Coming from claudecode.nvim](#-coming-from-claudecodenvim).
 
 ## 📦 Installation
 
@@ -55,7 +68,38 @@ Then, in Neovim:
 - The `dsh` CLI: `npm install -g @deepseek-ai/dsh`, or let the plugin find the
   copy under `~/.npm/_npx`
 - For the TUI: Node.js `^22.19` or `>=24`, `pnpm`, and the dsh-TUI plugin
-  (`:DshTuiInstall`)
+  (see [Install dsh-TUI](#install-dsh-tui))
+
+### Install dsh-TUI
+
+dsh-TUI is the interactive terminal app of DeepSeek Harness. dsh.nvim runs it
+inside Neovim, so install it once from a shell:
+
+```sh
+# 1. the dsh CLI (skip this if you already have it)
+npm install -g @deepseek-ai/dsh
+
+# 2. the dsh-TUI plugin, installed into its own `dsh-tui` profile
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+
+# 3. check that the TUI starts
+dsh --profile dsh-tui
+```
+
+- Without a global install, replace `dsh` with `npx -y @deepseek-ai/dsh`.
+- The first install uses `pnpm` to fetch dependencies, which takes a while.
+- `dsh plugin --profile dsh-tui <args>` runs `pnpm <args>` inside that profile.
+- dsh.nvim finds `dsh` on your `PATH` or under `~/.npm/_npx`. Set `dsh_cmd`
+  if it lives elsewhere.
+
+To update the plugin, run:
+
+```sh
+dsh plugin --profile dsh-tui update --latest @deepseek-harness-tui/dsh-tui
+```
+
+If the TUI reports that the plugin and the dsh version do not match, update the
+plugin (or the dsh CLI) so that the two agree.
 
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
@@ -88,23 +132,6 @@ Plug 'AlbinZhu/dsh.nvim'
 " lua require("dsh").setup()
 ```
 
-## 💬 Ask dsh
-
-The reply appears in a floating window. Close it with `q`, `<Esc>` or `<C-c>`.
-
-| Command | What it does |
-| --- | --- |
-| `:Dsh <question>` | Ask (no argument opens an input prompt) |
-| `:DshFile` | Review the current file |
-| `:'<,'>DshSelection` | Process the visual selection |
-| `:DshCancel` | Cancel the running task |
-
-| Key | Action |
-| --- | --- |
-| `<leader>da` | Ask |
-| `<leader>df` | Review the current file |
-| `<leader>ds` (visual) | Process the selection |
-
 ## 🖥️ Use the TUI
 
 The interactive dsh-TUI runs in a Neovim terminal, as a vertical split by
@@ -120,7 +147,6 @@ default. It also works as a horizontal split, a float or a tab.
 | `:'<,'>DshTuiSelection` | Add the selection |
 | `:DshTuiTreeAdd` | In a file explorer, add the file under the cursor |
 | `:DshTuiClose` | Hide the TUI; it keeps running |
-| `:DshTuiInstall` | Install dsh-TUI into the `dsh-tui` profile |
 
 | Key | Action |
 | --- | --- |
@@ -163,9 +189,7 @@ Most useful options:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `profile` | `"headless"` | dsh profile for one-shot tasks |
-| `cwd` | `"root"` | `"root"` (git root), `"buffer"`, `"cwd"` or a path |
-| `timeout_ms` | `nil` | task timeout in ms; `nil` means none |
+| `tui.cwd` | `"root"` | `"root"` (git root), `"buffer"`, `"cwd"` or a path |
 | `tui.layout` | `"vsplit"` | `"float"`, `"split"`, `"vsplit"` or `"tab"` |
 | `tui.vsplit.size` | `0.3` | vertical split width, fraction of the editor |
 | `tui.provider` | `"auto"` | snacks if installed, else `"native"` |
@@ -181,14 +205,11 @@ With `"mention"`, files and selections are referenced with `@`; with
 ### Avoiding key clashes
 
 Some default keys may clash with other plugins. LazyVim, for example, uses the
-`<leader>d` and `<leader>t` groups. Move them under a prefix of your own:
+`<leader>t` group. Move the TUI keys under a prefix of your own:
 
 ```lua
 require("dsh").setup({
   keymaps = {
-    ask = "<leader>Aa",
-    ask_file = "<leader>Af",
-    ask_visual = "<leader>As",
     tui = "<leader>At",
     tui_file = "<leader>AF",
     tui_visual = "<leader>AS",
@@ -204,17 +225,11 @@ Set any entry in `keymaps` to `false` to disable it.
 local dsh = require("dsh")
 
 dsh.setup({ tui = { layout = "split" } }) -- configure and register keymaps
-dsh.run("explain this project")           -- run a one-shot task
-dsh.ask()                                 -- ask; with no argument, an input prompt
-dsh.ask_file()                            -- review the current file
-dsh.ask_visual()                          -- process the visual selection
-dsh.cancel()                              -- cancel the running task
 dsh.open_tui({ layout = "float", text = "hi" }) -- open or focus the TUI
 dsh.toggle_tui()                          -- show or hide the TUI
 dsh.focus_tui()                           -- focus it, or hide it if focused
 dsh.resume_tui("session-id")              -- --resume "session-id" (nil = last)
 dsh.close_tui()                           -- hide the TUI window
-dsh.tui_install()                         -- install dsh-TUI
 dsh.tui_add_file("lua/foo.lua", 12, 14)   -- a file, optionally just some lines
 dsh.tui_add_files({ "lua", "README.md" }) -- several files or directories
 dsh.tui_add_tree()                        -- file explorer: the file under cursor
@@ -241,17 +256,11 @@ The commands and window keys follow claudecode.nvim, so the habits carry over.
 
 ## 🧠 How it works
 
-- **Quick questions** run `dsh --profile headless -- "<task>"` and show the last
-  reply in a float. A spinner shows while it runs.
 - **The TUI** runs `dsh --profile dsh-tui` in a `:terminal` buffer. Hiding it
   keeps the process alive, so showing it again returns to the same session.
 - **Context** is typed into the TUI's input line. Nothing is submitted for you.
 
 ## ❓ FAQ
-
-### Slow first run
-
-The `headless` profile sets itself up on first use. This is normal.
 
 ### dsh is not found
 
@@ -264,7 +273,11 @@ require("dsh").setup({ dsh_cmd = "/path/to/dsh" })
 
 ### Missing profile or plugin
 
-Run `:DshTuiInstall` once.
+Run the install command once:
+
+```sh
+dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+```
 
 ### Leaving insert mode in the TUI
 

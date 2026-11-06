@@ -1,10 +1,10 @@
 --- dsh-TUI 集成：在 Neovim 内置终端里运行 `dsh --profile dsh-tui`。
 ---
---- 与 headless 一次性任务不同，dsh-TUI 是一个全屏交互式终端应用
---- （ANSI 转义、bracketed paste、鼠标等），因此把它跑进 `:terminal` 缓冲区，
---- 支持 float / split / vsplit / tab 四种布局，并可反复 toggle（收起/恢复）。
+--- dsh-TUI 是一个全屏交互式终端应用（ANSI 转义、bracketed paste、鼠标等），
+--- 因此把它跑进 `:terminal` 缓冲区，支持 float / split / vsplit / tab 四种布局，
+--- 并可反复 toggle（收起/恢复）。
 ---
---- 使用前需要先把 TUI 插件装进 dsh-tui profile（见 README / `:DshTuiInstall`）。
+--- 使用前需要先把 TUI 插件装进 dsh-tui profile（见 README 的安装说明）。
 
 local M = {}
 
@@ -20,6 +20,24 @@ end
 
 local function shellquote(s)
   return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
+--- 解析 dsh 可执行文件：显式配置 > PATH > ~/.npm/_npx 下的最新副本。
+local function resolve_dsh_cmd(cfg)
+  if cfg.dsh_cmd and cfg.dsh_cmd ~= "" then
+    return vim.fn.expand(cfg.dsh_cmd)
+  end
+  if vim.fn.executable("dsh") == 1 then
+    return "dsh"
+  end
+  local found = vim.fn.glob(vim.fn.expand("~/.npm/_npx/*/node_modules/.bin/dsh"), false, true)
+  if type(found) == "table" and #found > 0 then
+    table.sort(found, function(a, b)
+      return vim.fn.getftime(a) > vim.fn.getftime(b)
+    end)
+    return found[1]
+  end
+  return nil
 end
 
 --- 聚焦 TUI 窗口后进入终端模式，让按键直接输入给 TUI（tui.auto_insert = false 时停在 normal 模式）。
@@ -82,7 +100,7 @@ end
 ---@param cfg table 合并后的配置
 ---@param app_args string[]|nil 传给 TUI 应用本身的参数（例如 { "--resume" }），排在启动器参数之后
 local function build_cmd(cfg, app_args)
-  local cmd = require("dsh.runner").resolve_dsh_cmd(cfg)
+  local cmd = resolve_dsh_cmd(cfg)
   if not cmd then
     return nil, "找不到 dsh 可执行文件，请在 require('dsh').setup({ dsh_cmd = '/path/to/dsh' }) 中指定。"
   end
@@ -114,7 +132,7 @@ end
 --- 运行目录；TUI 继承这个 cwd 来定位项目。
 local function resolve_cwd(cfg)
   local t = cfg.tui or {}
-  return require("dsh.context").resolve_cwd(t.cwd or cfg.cwd or "root")
+  return require("dsh.context").resolve_cwd(t.cwd or "root")
 end
 
 --- termopen 选项（cwd）。
@@ -456,7 +474,7 @@ function M.open(opts)
         end
         -- 异常退出：保留窗口，让用户看到 TUI 打印的错误信息；下次 open 时再清理。
         vim.notify(
-          string.format("dsh-tui 已退出（exit code %s）。若提示 profile/插件缺失，请先运行 :DshTuiInstall。", tostring(code)),
+          string.format("dsh-tui 已退出（exit code %s）。若提示 profile/插件缺失，请先运行 `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`。", tostring(code)),
           vim.log.levels.ERROR
         )
       end)
@@ -746,35 +764,6 @@ end
 --- 是否有一个可见的 TUI 窗口。
 function M.is_open()
   return state.win ~= nil and vim.api.nvim_win_is_valid(state.win)
-end
-
---- 安装 TUI 插件：`dsh plugin --profile tui add <plugin_name>`。
---- 在 split 终端里运行，方便查看 pnpm/npm 输出与交互。
-function M.install()
-  local cfg = config()
-  local cmd = require("dsh.runner").resolve_dsh_cmd(cfg)
-  if not cmd then
-    vim.notify("dsh-tui: 找不到 dsh 可执行文件，无法安装插件。", vim.log.levels.ERROR)
-    return nil
-  end
-
-  local t = cfg.tui or {}
-  local profile = t.profile or "dsh-tui"
-  local plugin = t.plugin_name or "@deepseek-harness-tui/dsh-tui"
-
-  local argv
-  if cmd:find("%s") then
-    argv = string.format("%s plugin --profile %s add %s", cmd, shellquote(profile), shellquote(plugin))
-  else
-    argv = { cmd, "plugin", "--profile", profile, "add", plugin }
-  end
-
-  local result = launch(argv, { layout = "split", filetype = "dsh-tui-install" })
-  vim.notify(
-    string.format("正在安装 %s 到 profile `%s`（在下方终端查看进度）…", plugin, profile),
-    vim.log.levels.INFO
-  )
-  return result
 end
 
 --- 暴露内部状态（供诊断）。
